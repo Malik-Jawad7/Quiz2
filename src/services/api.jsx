@@ -1,4 +1,3 @@
-// services/api.jsx
 import axios from 'axios';
 
 // ================= CONFIGURATION =================
@@ -6,19 +5,57 @@ import axios from 'axios';
 const VERCEL_BACKEND_URL = 'https://backend-r58y9vkx6-khalids-projects-3de9ee65.vercel.app';
 
 // Dynamic URL - production میں Vercel, development میں localhost
-const API_URL = import.meta.env.PROD 
-    ? `${VERCEL_BACKEND_URL}/api` 
-    : 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.PROD 
+    ? VERCEL_BACKEND_URL 
+    : 'http://localhost:5000';
 
-console.log('📡 API URL:', API_URL);
+console.log('📡 API Base URL:', API_BASE_URL);
 
 // ========== PUBLIC ROUTES ==========
+
+// Admin login
+export const adminLogin = async (loginData) => {
+    try {
+        console.log('🔗 Admin login API URL:', `${API_BASE_URL}/api/admin/login`);
+        console.log('📤 Sending data:', loginData);
+        
+        const response = await axios.post(`${API_BASE_URL}/api/admin/login`, loginData, {
+            timeout: 15000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('✅ Response received:', response.data);
+        return response;
+    } catch (error) {
+        console.error('❌ Admin login error:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+            url: error.config?.url
+        });
+        
+        // Specific error messages
+        if (error.response) {
+            if (error.response.status === 401) {
+                throw new Error('Invalid username or password');
+            } else if (error.response.status === 500) {
+                throw new Error('Server error. Please try again later.');
+            }
+        } else if (error.request) {
+            throw new Error('Cannot connect to server. Please check your internet connection.');
+        }
+        
+        throw error;
+    }
+};
 
 // Register User
 export const registerUser = async (userData) => {
     try {
-        console.log('Registering user with URL:', `${API_URL}/auth/register`);
-        const response = await axios.post(`${API_URL}/auth/register`, userData, {
+        console.log('Registering user with URL:', `${API_BASE_URL}/api/auth/register`);
+        const response = await axios.post(`${API_BASE_URL}/api/auth/register`, userData, {
             timeout: 10000,
             headers: {
                 'Content-Type': 'application/json'
@@ -35,7 +72,7 @@ export const registerUser = async (userData) => {
 export const getQuestionsByCategory = async (category) => {
     try {
         console.log('Fetching questions for category:', category);
-        const response = await axios.get(`${API_URL}/user/questions/${category}`, {
+        const response = await axios.get(`${API_BASE_URL}/api/user/questions/${category}`, {
             timeout: 15000
         });
         return response;
@@ -49,7 +86,7 @@ export const getQuestionsByCategory = async (category) => {
 export const submitQuiz = async (quizData) => {
     try {
         console.log('Submitting quiz data');
-        const response = await axios.post(`${API_URL}/user/submit`, quizData, {
+        const response = await axios.post(`${API_BASE_URL}/api/user/submit`, quizData, {
             timeout: 15000,
             headers: {
                 'Content-Type': 'application/json'
@@ -65,8 +102,8 @@ export const submitQuiz = async (quizData) => {
 // Get config (public)
 export const getQuizConfig = async () => {
     try {
-        console.log('Fetching quiz config from:', `${API_URL}/config`);
-        const response = await axios.get(`${API_URL}/config`, {
+        console.log('Fetching quiz config from:', `${API_BASE_URL}/api/config`);
+        const response = await axios.get(`${API_BASE_URL}/api/config`, {
             timeout: 10000
         });
         return response;
@@ -87,10 +124,10 @@ export const getQuizConfig = async () => {
     }
 };
 
-// Get result config (public) - یہ function Result.jsx کے لیے ہے
+// Get result config (public)
 export const getResultConfig = async () => {
     try {
-        const response = await axios.get(`${API_URL}/result-config`, {
+        const response = await axios.get(`${API_BASE_URL}/api/result-config`, {
             timeout: 10000
         });
         return response;
@@ -111,42 +148,7 @@ export const getResultConfig = async () => {
     }
 };
 
-// Health check
-export const checkHealth = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/health`, {
-            timeout: 10000
-        });
-        return response;
-    } catch (error) {
-        console.error('Health check failed:', error.message);
-        return {
-            data: {
-                success: false,
-                message: 'Backend is not responding'
-            }
-        };
-    }
-};
-
 // ========== ADMIN ROUTES ==========
-
-// Admin login
-export const adminLogin = async (loginData) => {
-    try {
-        console.log('Admin login attempt to:', `${API_URL}/admin/login`);
-        const response = await axios.post(`${API_URL}/admin/login`, loginData, {
-            timeout: 10000,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        return response;
-    } catch (error) {
-        console.error('Admin login error:', error.response?.data || error.message);
-        throw error;
-    }
-};
 
 // Get config (admin)
 export const getConfig = async () => {
@@ -156,7 +158,7 @@ export const getConfig = async () => {
             throw new Error('No admin token found');
         }
         
-        const response = await axios.get(`${API_URL}/admin/config`, {
+        const response = await axios.get(`${API_BASE_URL}/api/admin/config`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             },
@@ -188,7 +190,7 @@ export const updateConfig = async (configData) => {
             throw new Error('No admin token found');
         }
         
-        const response = await axios.put(`${API_URL}/admin/config`, configData, {
+        const response = await axios.put(`${API_BASE_URL}/api/admin/config`, configData, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -210,7 +212,7 @@ export const getAllQuestions = async () => {
             throw new Error('No admin token found');
         }
         
-        const response = await axios.get(`${API_URL}/admin/questions`, {
+        const response = await axios.get(`${API_BASE_URL}/api/admin/questions`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             },
@@ -236,7 +238,7 @@ export const addQuestion = async (questionData) => {
             throw new Error('No admin token found');
         }
         
-        const response = await axios.post(`${API_URL}/admin/questions`, questionData, {
+        const response = await axios.post(`${API_BASE_URL}/api/admin/questions`, questionData, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -258,7 +260,7 @@ export const deleteQuestion = async (id) => {
             throw new Error('No admin token found');
         }
         
-        const response = await axios.delete(`${API_URL}/admin/questions/${id}`, {
+        const response = await axios.delete(`${API_BASE_URL}/api/admin/questions/${id}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             },
@@ -279,7 +281,7 @@ export const getResults = async () => {
             throw new Error('No admin token found');
         }
         
-        const response = await axios.get(`${API_URL}/admin/users`, {
+        const response = await axios.get(`${API_BASE_URL}/api/admin/users`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             },
@@ -297,70 +299,6 @@ export const getResults = async () => {
     }
 };
 
-// Add result (admin)
-export const addResult = async (resultData) => {
-    try {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            throw new Error('No admin token found');
-        }
-        
-        const response = await axios.post(`${API_URL}/admin/results`, resultData, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 15000
-        });
-        return response;
-    } catch (error) {
-        console.error('Add result error:', error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Delete result
-export const deleteResult = async (id) => {
-    try {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            throw new Error('No admin token found');
-        }
-        
-        const response = await axios.delete(`${API_URL}/admin/results/${id}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            timeout: 10000
-        });
-        return response;
-    } catch (error) {
-        console.error('Delete result error:', error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Delete all results
-export const deleteAllResults = async () => {
-    try {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            throw new Error('No admin token found');
-        }
-        
-        const response = await axios.delete(`${API_URL}/admin/results`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            timeout: 15000
-        });
-        return response;
-    } catch (error) {
-        console.error('Delete all results error:', error.response?.data || error.message);
-        throw error;
-    }
-};
-
 // Get dashboard stats
 export const getDashboardStats = async () => {
     try {
@@ -369,7 +307,7 @@ export const getDashboardStats = async () => {
             throw new Error('No admin token found');
         }
         
-        const response = await axios.get(`${API_URL}/admin/dashboard`, {
+        const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             },
@@ -397,10 +335,28 @@ export const getDashboardStats = async () => {
     }
 };
 
+// Health check
+export const checkHealth = async () => {
+    try {
+        const response = await axios.get(`${API_BASE_URL}/api/health`, {
+            timeout: 10000
+        });
+        return response;
+    } catch (error) {
+        console.error('Health check failed:', error.message);
+        return {
+            data: {
+                success: false,
+                message: 'Backend is not responding'
+            }
+        };
+    }
+};
+
 // Test database connection
 export const testDatabase = async () => {
     try {
-        const response = await axios.get(`${API_URL}/test-db`, {
+        const response = await axios.get(`${API_BASE_URL}/api/test-db`, {
             timeout: 15000
         });
         return response;
@@ -418,7 +374,7 @@ export const testDatabase = async () => {
 // Initialize database with sample data
 export const initializeDatabase = async () => {
     try {
-        const response = await axios.get(`${API_URL}/init`, {
+        const response = await axios.get(`${API_BASE_URL}/api/init`, {
             timeout: 20000
         });
         return response;
