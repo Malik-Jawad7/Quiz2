@@ -1,6 +1,7 @@
+// src/pages/Result.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getResultConfig } from '../services/api';
+import { getResultConfig } from '../services/api'; // ✅ اب getResultConfig موجود ہے
 import './Result.css';
 
 const Result = () => {
@@ -28,7 +29,7 @@ const Result = () => {
         // Get admin configuration for result page
         const fetchResultConfig = async () => {
             try {
-                const response = await getResultConfig();
+                const response = await getResultConfig(); // ✅ اب کام کرے گا
                 if (response.data?.success && response.data.config) {
                     const newConfig = {
                         passingPercentage: response.data.config.passingPercentage || 40,

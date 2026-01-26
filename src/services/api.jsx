@@ -14,6 +14,123 @@ console.log('📡 API URL:', API_URL);
 
 // ========== PUBLIC ROUTES ==========
 
+// Register User
+export const registerUser = async (userData) => {
+    try {
+        console.log('Registering user with URL:', `${API_URL}/auth/register`);
+        const response = await axios.post(`${API_URL}/auth/register`, userData, {
+            timeout: 10000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        return response;
+    } catch (error) {
+        console.error('Registration error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+// Get questions by category
+export const getQuestionsByCategory = async (category) => {
+    try {
+        console.log('Fetching questions for category:', category);
+        const response = await axios.get(`${API_URL}/user/questions/${category}`, {
+            timeout: 15000
+        });
+        return response;
+    } catch (error) {
+        console.error('Get questions error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+// Submit quiz
+export const submitQuiz = async (quizData) => {
+    try {
+        console.log('Submitting quiz data');
+        const response = await axios.post(`${API_URL}/user/submit`, quizData, {
+            timeout: 15000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        return response;
+    } catch (error) {
+        console.error('Submit quiz error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+// Get config (public)
+export const getQuizConfig = async () => {
+    try {
+        console.log('Fetching quiz config from:', `${API_URL}/config`);
+        const response = await axios.get(`${API_URL}/config`, {
+            timeout: 10000
+        });
+        return response;
+    } catch (error) {
+        console.log('Failed to fetch config, using fallback', error.message);
+        // Return mock data as fallback
+        return {
+            data: {
+                success: true,
+                config: {
+                    quizTime: 30,
+                    passingPercentage: 40,
+                    totalQuestions: 50,
+                    maxMarks: 100
+                }
+            }
+        };
+    }
+};
+
+// Get result config (public) - یہ function Result.jsx کے لیے ہے
+export const getResultConfig = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/result-config`, {
+            timeout: 10000
+        });
+        return response;
+    } catch (error) {
+        console.log('Failed to fetch result config, using fallback', error.message);
+        // Return fallback data
+        return {
+            data: {
+                success: true,
+                config: {
+                    quizTime: 30,
+                    passingPercentage: 40,
+                    totalQuestions: 50,
+                    maxMarks: 100
+                }
+            }
+        };
+    }
+};
+
+// Health check
+export const checkHealth = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/health`, {
+            timeout: 10000
+        });
+        return response;
+    } catch (error) {
+        console.error('Health check failed:', error.message);
+        return {
+            data: {
+                success: false,
+                message: 'Backend is not responding'
+            }
+        };
+    }
+};
+
+// ========== ADMIN ROUTES ==========
+
 // Admin login
 export const adminLogin = async (loginData) => {
     try {
@@ -343,94 +460,5 @@ export const getAdminInfo = () => {
         return adminUser ? JSON.parse(adminUser) : null;
     } catch (error) {
         return null;
-    }
-};
-
-// ========== PUBLIC STUDENT ROUTES ==========
-
-// Register User
-export const registerUser = async (userData) => {
-    try {
-        const response = await axios.post(`${API_URL}/auth/register`, userData, {
-            timeout: 10000,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        return response;
-    } catch (error) {
-        console.error('Registration error:', error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Get questions by category
-export const getQuestionsByCategory = async (category) => {
-    try {
-        const response = await axios.get(`${API_URL}/user/questions/${category}`, {
-            timeout: 15000
-        });
-        return response;
-    } catch (error) {
-        console.error('Get questions error:', error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Submit quiz
-export const submitQuiz = async (quizData) => {
-    try {
-        const response = await axios.post(`${API_URL}/user/submit`, quizData, {
-            timeout: 15000,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        return response;
-    } catch (error) {
-        console.error('Submit quiz error:', error.response?.data || error.message);
-        throw error;
-    }
-};
-
-// Get config (public)
-export const getQuizConfig = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/config`, {
-            timeout: 10000
-        });
-        return response;
-    } catch (error) {
-        console.log('Failed to fetch config, using fallback', error.message);
-        // Return mock data as fallback
-        return {
-            data: {
-                success: true,
-                config: {
-                    quizTime: 30,
-                    passingPercentage: 40,
-                    totalQuestions: 50,
-                    maxMarks: 100
-                }
-            }
-        };
-    }
-};
-
-// Health check
-export const checkHealth = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/health`, {
-            timeout: 10000
-        });
-        return response;
-    } catch (error) {
-        console.error('Health check failed:', error.message);
-        return {
-            data: {
-                success: false,
-                message: 'Backend is not responding'
-            }
-        };
     }
 };
