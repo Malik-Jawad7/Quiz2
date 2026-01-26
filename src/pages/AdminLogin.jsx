@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { adminLogin, checkHealth, testDatabase } from '../services/api';
-import axios from 'axios';
 import './AdminLogin.css';
 
 const AdminLogin = () => {
@@ -12,10 +11,9 @@ const AdminLogin = () => {
     const [backendStatus, setBackendStatus] = useState('checking');
     const [backendUrl] = useState('https://backend-r58y9vkx6-khalids-projects-3de9ee65.vercel.app');
     const [error, setError] = useState('');
-    const [backendResponse, setBackendResponse] = useState(null);
+    const [healthData, setHealthData] = useState(null);
 
     useEffect(() => {
-        // Check backend connection on load
         checkBackendConnection();
     }, []);
 
@@ -24,29 +22,38 @@ const AdminLogin = () => {
             setBackendStatus('checking');
             setError('');
             
-            // Direct axios call to health endpoint
-            const response = await axios.get(`${backendUrl}/api/health`, {
-                timeout: 10000,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            });
+            const response = await checkHealth();
+            console.log('Health response:', response.data);
             
-            console.log('Backend health response:', response.data);
-            setBackendResponse(response.data);
-            
-            if (response.data && response.data.status === "OK") {
+            if (response.data && response.data.success) {
                 setBackendStatus('connected');
+                setHealthData(response.data);
+                localStorage.setItem('backendHealth', JSON.stringify(response.data));
             } else {
                 setBackendStatus('disconnected');
-                setError('Backend responded but status is not OK');
+                setError('Backend responded but with unexpected format');
             }
         } catch (error) {
-            console.error('Backend connection error:', error);
+            console.error('Backend check failed:', error);
             setBackendStatus('disconnected');
-            setError(`Connection failed: ${error.message}`);
-            setBackendResponse(null);
+            setError('Connection failed. Backend might be down.');
+            
+            // Try direct fetch as fallback
+            tryDirectConnection();
+        }
+    };
+
+    const tryDirectConnection = async () => {
+        try {
+            const response = await fetch(`${backendUrl}/api/health`);
+            const data = await response.json();
+            if (data && data.status === "OK") {
+                setBackendStatus('connected');
+                setHealthData(data);
+                setError('');
+            }
+        } catch (err) {
+            console.log('Direct connection also failed');
         }
     };
 
@@ -78,7 +85,7 @@ const AdminLogin = () => {
             }
         } catch (error) {
             console.error('Login error:', error);
-            setError(error.response?.data?.message || 'Login failed. Check credentials or backend connection.');
+            setError(error.response?.data?.message || 'Login failed. Check credentials.');
         } finally {
             setLoading(false);
         }
@@ -89,12 +96,12 @@ const AdminLogin = () => {
         try {
             const response = await testDatabase();
             if (response.data.success) {
-                alert(`✅ Database Connected!\n\nUsers: ${response.data.counts?.users || 0}\nQuestions: ${response.data.counts?.questions || 0}\nAdmins: ${response.data.counts?.admins || 0}`);
+                alert(`✅ Connection Test Successful!\n\nMode: ${response.data.mode}\nUsers: ${response.data.counts?.users || 0}\nQuestions: ${response.data.counts?.questions || 0}`);
             } else {
-                alert(`❌ ${response.data.message || 'Database test failed'}`);
+                alert(`❌ ${response.data.message || 'Connection test failed'}`);
             }
         } catch (error) {
-            alert(`❌ Connection Error: ${error.message}\n\nPlease check:\n1. Backend URL\n2. MongoDB connection\n3. Network access`);
+            alert(`❌ Test Error: ${error.message}\n\nBackend URL: ${backendUrl}`);
         } finally {
             setLoading(false);
         }
@@ -117,20 +124,8 @@ const AdminLogin = () => {
         alert('Demo credentials loaded. Click "Access Dashboard" to login.');
     };
 
-    const testBackendDirectly = async () => {
-        try {
-            setLoading(true);
-            const response = await axios.get(`${backendUrl}/api/test-db`);
-            if (response.data.success) {
-                alert(`✅ Backend Test Successful!\n\n${JSON.stringify(response.data, null, 2)}`);
-            } else {
-                alert(`❌ ${response.data.message}`);
-            }
-        } catch (error) {
-            alert(`❌ Direct Test Failed: ${error.message}`);
-        } finally {
-            setLoading(false);
-        }
+    const openBackendInNewTab = () => {
+        window.open(backendUrl, '_blank');
     };
 
     return (
@@ -149,23 +144,17 @@ const AdminLogin = () => {
                                            backendStatus === 'checking' ? '🔄 Checking...' : 
                                            '❌ Disconnected'}
                         </span>
-                        <button 
-                            onClick={checkBackendConnection}
-                            className="refresh-status-btn"
-                            title="Refresh Status"
-                        >
-                            🔄
-                        </button>
                     </div>
+                    
+                    {healthData && (
+                        <div className="health-info">
+                            <small>
+                                Mode: {healthData.database === 'Connected' ? 'Database' : 'Memory'} • 
+                                Environment: {healthData.environment}
+                            </small>
+                        </div>
+                    )}
                 </div>
-
-                {/* Backend Info */}
-                {backendResponse && (
-                    <div className="backend-info">
-                        <h4>Backend Response:</h4>
-                        <pre>{JSON.stringify(backendResponse, null, 2)}</pre>
-                    </div>
-                )}
 
                 {/* Login Form */}
                 <form onSubmit={handleLogin} className="login-form">
@@ -216,16 +205,7 @@ const AdminLogin = () => {
                             onClick={handleTestConnection}
                             disabled={loading}
                         >
-                            🔧 Test Backend Connection
-                        </button>
-                        
-                        <button 
-                            type="button" 
-                            className="direct-test-btn"
-                            onClick={testBackendDirectly}
-                            disabled={loading}
-                        >
-                            ⚡ Direct Backend Test
+                            🔧 Test Connection
                         </button>
                     </div>
                 </form>
@@ -235,9 +215,8 @@ const AdminLogin = () => {
                     <button 
                         onClick={handleAccessDashboard}
                         className="dashboard-btn"
-                        disabled={!localStorage.getItem('adminToken')}
                     >
-                        {localStorage.getItem('adminToken') ? '📊 Go to Dashboard' : '📊 Access Dashboard (Login Required)'}
+                        📊 Access Dashboard
                     </button>
                     
                     <button 
@@ -245,6 +224,13 @@ const AdminLogin = () => {
                         className="back-btn"
                     >
                         ← Back to Student Portal
+                    </button>
+                    
+                    <button 
+                        onClick={openBackendInNewTab}
+                        className="backend-btn"
+                    >
+                        🌐 Open Backend
                     </button>
                 </div>
 
@@ -263,31 +249,35 @@ const AdminLogin = () => {
                         <span>Backend URL:</span>
                         <code>{backendUrl}</code>
                     </div>
-                    <div className="credential-actions">
-                        <button 
-                            onClick={handleDemoLogin}
-                            className="demo-btn"
-                        >
-                            Load Demo Credentials
-                        </button>
-                        <button 
-                            onClick={() => window.open(`${backendUrl}/api/health`, '_blank')}
-                            className="open-btn"
-                        >
-                            Open Backend in New Tab
-                        </button>
-                    </div>
+                    <button 
+                        onClick={handleDemoLogin}
+                        className="demo-btn"
+                    >
+                        Use Demo Credentials
+                    </button>
                 </div>
 
-                {/* Connection Troubleshooting */}
-                <div className="troubleshooting">
-                    <h4>⚠️ Connection Issues?</h4>
-                    <ol>
-                        <li>Check if backend is running: <a href={`${backendUrl}/api/health`} target="_blank" rel="noopener noreferrer">Click here</a></li>
-                        <li>Verify MongoDB connection</li>
-                        <li>Check browser console for errors (F12)</li>
-                        <li>Try different browser or clear cache</li>
-                    </ol>
+                {/* Connection Info */}
+                <div className="connection-info">
+                    <h4>Connection Status:</h4>
+                    <div className="status-details">
+                        <div className="status-item">
+                            <span>Backend:</span>
+                            <span className={backendStatus === 'connected' ? 'text-success' : 'text-danger'}>
+                                {backendStatus === 'connected' ? '✅ Online' : '❌ Offline'}
+                            </span>
+                        </div>
+                        <div className="status-item">
+                            <span>Database:</span>
+                            <span className={healthData?.database === 'Connected' ? 'text-success' : 'text-warning'}>
+                                {healthData?.database === 'Connected' ? '✅ Connected' : '⚠️ Memory Mode'}
+                            </span>
+                        </div>
+                        <div className="status-item">
+                            <span>Environment:</span>
+                            <span>{healthData?.environment || 'Unknown'}</span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Footer */}
@@ -299,7 +289,7 @@ const AdminLogin = () => {
                         © 2024 Shamsi Institute of Technology
                     </p>
                     <p className="version">
-                        Admin Panel v2.0
+                        Admin Panel v2.0 • Backend: {backendStatus === 'connected' ? 'Connected' : 'Disconnected'}
                     </p>
                 </div>
             </div>
