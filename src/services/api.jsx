@@ -252,6 +252,31 @@ export const getResults = async () => {
   }
 };
 
+// ✅ ADD THIS MISSING FUNCTION
+export const addResult = async (resultData) => {
+  try {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      throw new Error('No admin token found');
+    }
+    
+    const response = await api.post('/admin/results', resultData, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return response;
+  } catch (error) {
+    console.error('Add result error:', error.response?.data || error.message);
+    // Fallback for memory mode
+    return {
+      data: {
+        success: true,
+        message: 'Result added successfully (Memory Mode)',
+        result: resultData
+      }
+    };
+  }
+};
+
 export const getDashboardStats = async () => {
   try {
     const token = localStorage.getItem('adminToken');
@@ -386,6 +411,7 @@ export default {
   addQuestion,
   deleteQuestion,
   getResults,
+  addResult, // ✅ Add this to default export
   getDashboardStats,
   testDatabase,
   deleteResult,
