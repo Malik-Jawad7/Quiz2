@@ -1,3 +1,4 @@
+﻿
 /* AdminPanel.css */
 
 /* Base Styles */
@@ -27,7 +28,7 @@
     --gradient-warning: linear-gradient(135deg, #ffd166 0%, #ffb703 100%);
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+400,500,600,700&display=swap');
 
 body {
     font-family: 'Poppins', sans-serif;
@@ -2463,3 +2464,8 @@ textarea.form-control {
     margin-top: 30px;
     justify-items: center;
 }
+
+
+
+
+

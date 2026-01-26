@@ -1,5 +1,6 @@
+// pages/AdminLogin.jsx
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // Link import करें
+import { useNavigate } from 'react-router-dom';
 import { adminLogin } from '../services/api';
 import './AdminLogin.css';
 
@@ -46,23 +47,26 @@ const AdminLogin = () => {
         }
     };
 
-    // Register form पर navigate करने का function
-    const goToRegister = () => {
-        navigate('/register');
-    };
-
     return (
         <div className="vip-admin-login-container">
             <div className="vip-admin-login-card">
                 
                 <div className="login-header">
-                    <h2>Admin Portal</h2>
-                    <p>Shamsi Institute Quiz System</p>
+                    <div className="institute-logo">
+                        <div className="logo-circle">
+                            <i className="fas fa-university"></i>
+                        </div>
+                        <h2>Shamsi Institute</h2>
+                        <p>Admin Portal</p>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="vip-login-form">
                     <div className="vip-form-group">
-                        <label htmlFor="username">Administrator ID</label>
+                        <label htmlFor="username">
+                            <i className="fas fa-user-shield"></i>
+                            Administrator ID
+                        </label>
                         <input
                             type="text"
                             id="username"
@@ -76,7 +80,10 @@ const AdminLogin = () => {
                     </div>
 
                     <div className="vip-form-group">
-                        <label htmlFor="password">Security Key</label>
+                        <label htmlFor="password">
+                            <i className="fas fa-key"></i>
+                            Security Key
+                        </label>
                         <input
                             type="password"
                             id="password"
@@ -90,7 +97,8 @@ const AdminLogin = () => {
 
                     {error && (
                         <div className="vip-error-message">
-                            ⚠️ {error}
+                            <i className="fas fa-exclamation-circle"></i>
+                            {error}
                         </div>
                     )}
 
@@ -104,31 +112,51 @@ const AdminLogin = () => {
                                 <span className="vip-loading-spinner"></span>
                                 Authenticating...
                             </>
-                        ) : 'Access Dashboard'}
+                        ) : (
+                            <>
+                                <i className="fas fa-sign-in-alt"></i>
+                                Access Dashboard
+                            </>
+                        )}
                     </button>
 
-                    {/* Back to Register Button */}
+                    {/* Back to Main Site */}
                     <button
                         type="button"
-                        className="vip-back-to-register-btn"
-                        onClick={goToRegister}
+                        className="vip-back-to-site-btn"
+                        onClick={() => navigate('/')}
                         disabled={loading}
                     >
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{marginRight: '8px'}}>
-                            <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        Back to Registration Form
+                        <i className="fas fa-arrow-left"></i>
+                        Back to Student Portal
                     </button>
 
                     <div className="vip-login-info">
-                        <p><strong>🔐 Demo Credentials:</strong></p>
-                        <p>Username: <code>admin</code></p>
-                        <p>Password: <code>admin123</code></p>
-                        <p style={{fontSize: '12px', marginTop: '15px', color: 'rgba(255,255,255,0.5)'}}>
-                            Secured by AES-256 encryption
-                        </p>
+                        <div className="demo-credentials">
+                            <h4><i className="fas fa-key"></i> Demo Credentials:</h4>
+                            <div className="credential-item">
+                                <span className="label">Username:</span>
+                                <code>admin</code>
+                            </div>
+                            <div className="credential-item">
+                                <span className="label">Password:</span>
+                                <code>admin123</code>
+                            </div>
+                        </div>
+                        
+                        <div className="security-info">
+                            <p>
+                                <i className="fas fa-shield-alt"></i>
+                                Secured by AES-256 encryption
+                            </p>
+                        </div>
                     </div>
                 </form>
+
+                <div className="login-footer">
+                    <p>© 2024 Shamsi Institute of Technology</p>
+                    <p className="version">Version 2.0</p>
+                </div>
             </div>
         </div>
     );

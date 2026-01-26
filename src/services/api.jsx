@@ -1,97 +1,32 @@
-// src/services/api.jsx
+// services/api.jsx
 import axios from 'axios';
 
-// Base URL
-const API_URL = 'http://localhost:5000/api';
+// ================= CONFIGURATION =================
+// Production Backend URL
+const VERCEL_BACKEND_URL = 'https://backend-r58y9vkx6-khalids-projects-3de9ee65.vercel.app';
+
+// Dynamic URL - production میں Vercel, development میں localhost
+const API_URL = import.meta.env.PROD 
+    ? `${VERCEL_BACKEND_URL}/api` 
+    : 'http://localhost:5000/api';
+
+console.log('📡 API URL:', API_URL);
 
 // ========== PUBLIC ROUTES ==========
-
-// Register User
-export const registerUser = async (userData) => {
-    try {
-        const response = await axios.post(`${API_URL}/auth/register`, userData);
-        return response;
-    } catch (error) {
-        console.error('Registration error:', error);
-        throw error;
-    }
-};
-
-// Get questions by category
-export const getQuestionsByCategory = async (category) => {
-    try {
-        const response = await axios.get(`${API_URL}/user/questions/${category}`);
-        return response;
-    } catch (error) {
-        console.error('Get questions error:', error);
-        throw error;
-    }
-};
-
-// Submit quiz
-export const submitQuiz = async (quizData) => {
-    try {
-        const response = await axios.post(`${API_URL}/user/submit`, quizData);
-        return response;
-    } catch (error) {
-        console.error('Submit quiz error:', error);
-        throw error;
-    }
-};
-
-// Get config (public)
-export const getQuizConfig = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/config`);
-        return response;
-    } catch (error) {
-        console.log('Failed to fetch config, using fallback');
-        // Return mock data as fallback
-        return {
-            data: {
-                success: true,
-                config: {
-                    quizTime: 30,
-                    passingPercentage: 40,
-                    totalQuestions: 50,
-                    maxMarks: 100
-                }
-            }
-        };
-    }
-};
-
-// Get configuration for result page (public - no token required)
-export const getResultConfig = async () => {
-    try {
-        const response = await axios.get(`${API_URL}/config/public`);
-        return response;
-    } catch (error) {
-        console.log('Failed to fetch result config, using fallback', error);
-        // Return fallback data
-        return {
-            data: {
-                success: true,
-                config: {
-                    quizTime: 30,
-                    passingPercentage: 40,
-                    totalQuestions: 50,
-                    maxMarks: 100
-                }
-            }
-        };
-    }
-};
-
-// ========== ADMIN ROUTES ==========
 
 // Admin login
 export const adminLogin = async (loginData) => {
     try {
-        const response = await axios.post(`${API_URL}/admin/login`, loginData);
+        console.log('Admin login attempt to:', `${API_URL}/admin/login`);
+        const response = await axios.post(`${API_URL}/admin/login`, loginData, {
+            timeout: 10000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
         return response;
     } catch (error) {
-        console.error('Admin login error:', error);
+        console.error('Admin login error:', error.response?.data || error.message);
         throw error;
     }
 };
@@ -107,11 +42,12 @@ export const getConfig = async () => {
         const response = await axios.get(`${API_URL}/admin/config`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 10000
         });
         return response;
     } catch (error) {
-        console.error('Get config error, returning fallback:', error);
+        console.error('Get config error:', error.message);
         // Return fallback data
         return {
             data: {
@@ -127,7 +63,7 @@ export const getConfig = async () => {
     }
 };
 
-// Update config - use PUT method
+// Update config
 export const updateConfig = async (configData) => {
     try {
         const token = localStorage.getItem('adminToken');
@@ -137,12 +73,14 @@ export const updateConfig = async (configData) => {
         
         const response = await axios.put(`${API_URL}/admin/config`, configData, {
             headers: {
-                'Authorization': `Bearer ${token}`
-            }
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 10000
         });
         return response;
     } catch (error) {
-        console.error('Update config error:', error);
+        console.error('Update config error:', error.response?.data || error.message);
         throw error;
     }
 };
@@ -158,11 +96,12 @@ export const getAllQuestions = async () => {
         const response = await axios.get(`${API_URL}/admin/questions`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 15000
         });
         return response;
     } catch (error) {
-        console.error('Get all questions error:', error);
+        console.error('Get all questions error:', error.message);
         return {
             data: {
                 success: true,
@@ -172,8 +111,8 @@ export const getAllQuestions = async () => {
     }
 };
 
-// Add questions
-export const addQuestions = async (questionData) => {
+// Add question
+export const addQuestion = async (questionData) => {
     try {
         const token = localStorage.getItem('adminToken');
         if (!token) {
@@ -182,32 +121,14 @@ export const addQuestions = async (questionData) => {
         
         const response = await axios.post(`${API_URL}/admin/questions`, questionData, {
             headers: {
-                'Authorization': `Bearer ${token}`
-            }
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 15000
         });
         return response;
     } catch (error) {
-        console.error('Add questions error:', error);
-        throw error;
-    }
-};
-
-// Update question
-export const updateQuestion = async (id, questionData) => {
-    try {
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            throw new Error('No admin token found');
-        }
-        
-        const response = await axios.put(`${API_URL}/admin/questions/${id}`, questionData, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        return response;
-    } catch (error) {
-        console.error('Update question error:', error);
+        console.error('Add question error:', error.response?.data || error.message);
         throw error;
     }
 };
@@ -223,16 +144,17 @@ export const deleteQuestion = async (id) => {
         const response = await axios.delete(`${API_URL}/admin/questions/${id}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 10000
         });
         return response;
     } catch (error) {
-        console.error('Delete question error:', error);
+        console.error('Delete question error:', error.response?.data || error.message);
         throw error;
     }
 };
 
-// Get results
+// Get results (users)
 export const getResults = async () => {
     try {
         const token = localStorage.getItem('adminToken');
@@ -240,14 +162,15 @@ export const getResults = async () => {
             throw new Error('No admin token found');
         }
         
-        const response = await axios.get(`${API_URL}/admin/results`, {
+        const response = await axios.get(`${API_URL}/admin/users`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 15000
         });
         return response;
     } catch (error) {
-        console.error('Get results error:', error);
+        console.error('Get results error:', error.message);
         return {
             data: {
                 success: true,
@@ -257,7 +180,7 @@ export const getResults = async () => {
     }
 };
 
-// Add result (admin) - NEW FUNCTION ADDED
+// Add result (admin)
 export const addResult = async (resultData) => {
     try {
         const token = localStorage.getItem('adminToken');
@@ -267,12 +190,14 @@ export const addResult = async (resultData) => {
         
         const response = await axios.post(`${API_URL}/admin/results`, resultData, {
             headers: {
-                'Authorization': `Bearer ${token}`
-            }
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 15000
         });
         return response;
     } catch (error) {
-        console.error('Add result error:', error);
+        console.error('Add result error:', error.response?.data || error.message);
         throw error;
     }
 };
@@ -288,11 +213,12 @@ export const deleteResult = async (id) => {
         const response = await axios.delete(`${API_URL}/admin/results/${id}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 10000
         });
         return response;
     } catch (error) {
-        console.error('Delete result error:', error);
+        console.error('Delete result error:', error.response?.data || error.message);
         throw error;
     }
 };
@@ -308,11 +234,12 @@ export const deleteAllResults = async () => {
         const response = await axios.delete(`${API_URL}/admin/results`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 15000
         });
         return response;
     } catch (error) {
-        console.error('Delete all results error:', error);
+        console.error('Delete all results error:', error.response?.data || error.message);
         throw error;
     }
 };
@@ -328,11 +255,12 @@ export const getDashboardStats = async () => {
         const response = await axios.get(`${API_URL}/admin/dashboard`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            timeout: 15000
         });
         return response;
     } catch (error) {
-        console.error('Get dashboard stats error, returning fallback:', error);
+        console.error('Get dashboard stats error:', error.message);
         // Return fallback data
         return {
             data: {
@@ -347,6 +275,161 @@ export const getDashboardStats = async () => {
                     totalCategories: 0,
                     activeStudents: 0
                 }
+            }
+        };
+    }
+};
+
+// Test database connection
+export const testDatabase = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/test-db`, {
+            timeout: 15000
+        });
+        return response;
+    } catch (error) {
+        console.error('Database test failed:', error.message);
+        return {
+            data: {
+                success: false,
+                message: 'Database connection failed'
+            }
+        };
+    }
+};
+
+// Initialize database with sample data
+export const initializeDatabase = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/init`, {
+            timeout: 20000
+        });
+        return response;
+    } catch (error) {
+        console.error('Initialize database error:', error.message);
+        throw error;
+    }
+};
+
+// ========== HELPER FUNCTIONS ==========
+
+// Check if user is admin
+export const isAdminAuthenticated = () => {
+    const token = localStorage.getItem('adminToken');
+    const adminUser = localStorage.getItem('adminUser');
+    
+    if (!token || !adminUser) {
+        return false;
+    }
+    
+    try {
+        return true;
+    } catch (error) {
+        return false;
+    }
+};
+
+// Logout admin
+export const adminLogout = () => {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    console.log('Admin logged out');
+};
+
+// Get admin info
+export const getAdminInfo = () => {
+    try {
+        const adminUser = localStorage.getItem('adminUser');
+        return adminUser ? JSON.parse(adminUser) : null;
+    } catch (error) {
+        return null;
+    }
+};
+
+// ========== PUBLIC STUDENT ROUTES ==========
+
+// Register User
+export const registerUser = async (userData) => {
+    try {
+        const response = await axios.post(`${API_URL}/auth/register`, userData, {
+            timeout: 10000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        return response;
+    } catch (error) {
+        console.error('Registration error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+// Get questions by category
+export const getQuestionsByCategory = async (category) => {
+    try {
+        const response = await axios.get(`${API_URL}/user/questions/${category}`, {
+            timeout: 15000
+        });
+        return response;
+    } catch (error) {
+        console.error('Get questions error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+// Submit quiz
+export const submitQuiz = async (quizData) => {
+    try {
+        const response = await axios.post(`${API_URL}/user/submit`, quizData, {
+            timeout: 15000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        return response;
+    } catch (error) {
+        console.error('Submit quiz error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
+// Get config (public)
+export const getQuizConfig = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/config`, {
+            timeout: 10000
+        });
+        return response;
+    } catch (error) {
+        console.log('Failed to fetch config, using fallback', error.message);
+        // Return mock data as fallback
+        return {
+            data: {
+                success: true,
+                config: {
+                    quizTime: 30,
+                    passingPercentage: 40,
+                    totalQuestions: 50,
+                    maxMarks: 100
+                }
+            }
+        };
+    }
+};
+
+// Health check
+export const checkHealth = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/health`, {
+            timeout: 10000
+        });
+        return response;
+    } catch (error) {
+        console.error('Health check failed:', error.message);
+        return {
+            data: {
+                success: false,
+                message: 'Backend is not responding'
             }
         };
     }

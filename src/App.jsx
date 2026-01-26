@@ -1,4 +1,4 @@
-﻿// src/App.jsx
+﻿// App.jsx
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Register from './pages/Register';
@@ -19,22 +19,21 @@ const ScrollToTop = () => {
   return null;
 };
 
-// Protected Route Component
+// Protected Route Component for Admin
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('adminToken');
-  return token ? children : <Navigate to="/admin" replace />;
+  
+  if (!token) {
+    return <Navigate to="/admin" replace />;
+  }
+  
+  return children;
 };
 
+// Main App Component
 function App() {
   return (
-    <Router
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-        v7_normalizeFormMethod: true,
-        v7_fetcherPersist: true
-      }}
-    >
+    <Router>
       <ScrollToTop />
       <div className="app">
         <Routes>
@@ -54,7 +53,11 @@ function App() {
             } 
           />
           
-          {/* Fallback Route */}
+          {/* Fallback Routes */}
+          <Route path="/register" element={<Navigate to="/" replace />} />
+          <Route path="/home" element={<Navigate to="/" replace />} />
+          
+          {/* Catch-all Route - Redirect to Home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
