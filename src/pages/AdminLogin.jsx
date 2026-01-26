@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminLogin, checkHealth, testDatabase } from '../services/api';
+import axios from 'axios';
 import './AdminLogin.css';
 
 const AdminLogin = () => {
@@ -9,16 +10,11 @@ const AdminLogin = () => {
     });
     const [loading, setLoading] = useState(false);
     const [backendStatus, setBackendStatus] = useState('checking');
-    const [backendUrl, setBackendUrl] = useState('');
+    const [backendUrl] = useState('https://backend-r58y9vkx6-khalids-projects-3de9ee65.vercel.app');
     const [error, setError] = useState('');
+    const [backendResponse, setBackendResponse] = useState(null);
 
     useEffect(() => {
-        // Get backend URL from environment
-        const url = import.meta.env.PROD 
-            ? 'https://backend-r58y9vkx6-khalids-projects-3de9ee65.vercel.app'
-            : 'http://localhost:5000';
-        setBackendUrl(url);
-        
         // Check backend connection on load
         checkBackendConnection();
     }, []);
@@ -26,15 +22,31 @@ const AdminLogin = () => {
     const checkBackendConnection = async () => {
         try {
             setBackendStatus('checking');
-            const response = await checkHealth();
-            if (response.data.success) {
+            setError('');
+            
+            // Direct axios call to health endpoint
+            const response = await axios.get(`${backendUrl}/api/health`, {
+                timeout: 10000,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            console.log('Backend health response:', response.data);
+            setBackendResponse(response.data);
+            
+            if (response.data && response.data.status === "OK") {
                 setBackendStatus('connected');
             } else {
                 setBackendStatus('disconnected');
+                setError('Backend responded but status is not OK');
             }
         } catch (error) {
-            console.error('Backend check failed:', error);
+            console.error('Backend connection error:', error);
             setBackendStatus('disconnected');
+            setError(`Connection failed: ${error.message}`);
+            setBackendResponse(null);
         }
     };
 
@@ -66,7 +78,7 @@ const AdminLogin = () => {
             }
         } catch (error) {
             console.error('Login error:', error);
-            setError(error.response?.data?.message || 'Connection failed. Check backend URL.');
+            setError(error.response?.data?.message || 'Login failed. Check credentials or backend connection.');
         } finally {
             setLoading(false);
         }
@@ -77,12 +89,12 @@ const AdminLogin = () => {
         try {
             const response = await testDatabase();
             if (response.data.success) {
-                alert(`✅ Database connected successfully!\n\nUsers: ${response.data.counts?.users}\nQuestions: ${response.data.counts?.questions}\nAdmins: ${response.data.counts?.admins}`);
+                alert(`✅ Database Connected!\n\nUsers: ${response.data.counts?.users || 0}\nQuestions: ${response.data.counts?.questions || 0}\nAdmins: ${response.data.counts?.admins || 0}`);
             } else {
-                alert(`❌ ${response.data.message || 'Database connection failed'}`);
+                alert(`❌ ${response.data.message || 'Database test failed'}`);
             }
         } catch (error) {
-            alert(`❌ Connection failed: ${error.message}`);
+            alert(`❌ Connection Error: ${error.message}\n\nPlease check:\n1. Backend URL\n2. MongoDB connection\n3. Network access`);
         } finally {
             setLoading(false);
         }
@@ -102,6 +114,23 @@ const AdminLogin = () => {
             username: 'admin',
             password: 'admin123'
         });
+        alert('Demo credentials loaded. Click "Access Dashboard" to login.');
+    };
+
+    const testBackendDirectly = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get(`${backendUrl}/api/test-db`);
+            if (response.data.success) {
+                alert(`✅ Backend Test Successful!\n\n${JSON.stringify(response.data, null, 2)}`);
+            } else {
+                alert(`❌ ${response.data.message}`);
+            }
+        } catch (error) {
+            alert(`❌ Direct Test Failed: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -112,6 +141,7 @@ const AdminLogin = () => {
                     <img src="/images.jpg" alt="Shamsi Institute Logo" className="login-logo" />
                     <h1>Shamsi Institute</h1>
                     <h2>Admin Portal</h2>
+                    
                     <div className={`backend-status ${backendStatus}`}>
                         <span className="status-dot"></span>
                         <span className="status-text">
@@ -119,8 +149,23 @@ const AdminLogin = () => {
                                            backendStatus === 'checking' ? '🔄 Checking...' : 
                                            '❌ Disconnected'}
                         </span>
+                        <button 
+                            onClick={checkBackendConnection}
+                            className="refresh-status-btn"
+                            title="Refresh Status"
+                        >
+                            🔄
+                        </button>
                     </div>
                 </div>
+
+                {/* Backend Info */}
+                {backendResponse && (
+                    <div className="backend-info">
+                        <h4>Backend Response:</h4>
+                        <pre>{JSON.stringify(backendResponse, null, 2)}</pre>
+                    </div>
+                )}
 
                 {/* Login Form */}
                 <form onSubmit={handleLogin} className="login-form">
@@ -160,7 +205,7 @@ const AdminLogin = () => {
                         <button 
                             type="submit" 
                             className="login-btn"
-                            disabled={loading}
+                            disabled={loading || backendStatus === 'disconnected'}
                         >
                             {loading ? '🔐 Logging in...' : '🔓 Access Dashboard'}
                         </button>
@@ -173,6 +218,15 @@ const AdminLogin = () => {
                         >
                             🔧 Test Backend Connection
                         </button>
+                        
+                        <button 
+                            type="button" 
+                            className="direct-test-btn"
+                            onClick={testBackendDirectly}
+                            disabled={loading}
+                        >
+                            ⚡ Direct Backend Test
+                        </button>
                     </div>
                 </form>
 
@@ -181,8 +235,9 @@ const AdminLogin = () => {
                     <button 
                         onClick={handleAccessDashboard}
                         className="dashboard-btn"
+                        disabled={!localStorage.getItem('adminToken')}
                     >
-                        📊 Access Dashboard
+                        {localStorage.getItem('adminToken') ? '📊 Go to Dashboard' : '📊 Access Dashboard (Login Required)'}
                     </button>
                     
                     <button 
@@ -208,12 +263,31 @@ const AdminLogin = () => {
                         <span>Backend URL:</span>
                         <code>{backendUrl}</code>
                     </div>
-                    <button 
-                        onClick={handleDemoLogin}
-                        className="demo-btn"
-                    >
-                        Use Demo Credentials
-                    </button>
+                    <div className="credential-actions">
+                        <button 
+                            onClick={handleDemoLogin}
+                            className="demo-btn"
+                        >
+                            Load Demo Credentials
+                        </button>
+                        <button 
+                            onClick={() => window.open(`${backendUrl}/api/health`, '_blank')}
+                            className="open-btn"
+                        >
+                            Open Backend in New Tab
+                        </button>
+                    </div>
+                </div>
+
+                {/* Connection Troubleshooting */}
+                <div className="troubleshooting">
+                    <h4>⚠️ Connection Issues?</h4>
+                    <ol>
+                        <li>Check if backend is running: <a href={`${backendUrl}/api/health`} target="_blank" rel="noopener noreferrer">Click here</a></li>
+                        <li>Verify MongoDB connection</li>
+                        <li>Check browser console for errors (F12)</li>
+                        <li>Try different browser or clear cache</li>
+                    </ol>
                 </div>
 
                 {/* Footer */}

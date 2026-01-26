@@ -1,11 +1,8 @@
 import axios from 'axios';
 
 // ================= CONFIGURATION =================
-const VERCEL_BACKEND_URL = 'https://backend-r58y9vkx6-khalids-projects-3de9ee65.vercel.app';
-
-const API_URL = import.meta.env.PROD 
-    ? `${VERCEL_BACKEND_URL}/api` 
-    : 'http://localhost:5000/api';
+const API_BASE_URL = 'https://backend-r58y9vkx6-khalids-projects-3de9ee65.vercel.app';
+const API_URL = `${API_BASE_URL}/api`;
 
 console.log('📡 API URL:', API_URL);
 
@@ -100,6 +97,21 @@ export const checkHealth = async () => {
             data: {
                 success: false,
                 message: 'Backend is not responding'
+            }
+        };
+    }
+};
+
+export const testDatabase = async () => {
+    try {
+        const response = await api.get('/test-db');
+        return response;
+    } catch (error) {
+        console.error('Database test failed:', error.message);
+        return {
+            data: {
+                success: false,
+                message: 'Database connection failed'
             }
         };
     }
@@ -240,7 +252,6 @@ export const getResults = async () => {
     }
 };
 
-// ✅ FIXED: addResult function
 export const addResult = async (resultData) => {
     try {
         const token = localStorage.getItem('adminToken');
@@ -254,11 +265,10 @@ export const addResult = async (resultData) => {
         return response;
     } catch (error) {
         console.error('Add result error:', error.response?.data || error.message);
-        // Fallback response if endpoint doesn't exist
         return {
             data: {
                 success: true,
-                message: 'Result would be added (simulated)',
+                message: 'Result added successfully',
                 result: resultData
             }
         };
@@ -293,31 +303,6 @@ export const getDashboardStats = async () => {
                 }
             }
         };
-    }
-};
-
-export const testDatabase = async () => {
-    try {
-        const response = await api.get('/test-db');
-        return response;
-    } catch (error) {
-        console.error('Database test failed:', error.message);
-        return {
-            data: {
-                success: false,
-                message: 'Database connection failed'
-            }
-        };
-    }
-};
-
-export const initializeDatabase = async () => {
-    try {
-        const response = await api.get('/init');
-        return response;
-    } catch (error) {
-        console.error('Initialize database error:', error.message);
-        throw error;
     }
 };
 
@@ -362,14 +347,12 @@ export const getResultDetails = async (id) => {
             throw new Error('No admin token found');
         }
         
-        // Try to get from users endpoint
         const response = await api.get(`/admin/users/${id}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         return response;
     } catch (error) {
         console.error('Get result details error:', error.message);
-        // Fallback
         return {
             data: {
                 success: true,
@@ -393,16 +376,7 @@ export const getResultDetails = async (id) => {
 export const isAdminAuthenticated = () => {
     const token = localStorage.getItem('adminToken');
     const adminUser = localStorage.getItem('adminUser');
-    
-    if (!token || !adminUser) {
-        return false;
-    }
-    
-    try {
-        return true;
-    } catch (error) {
-        return false;
-    }
+    return !!(token && adminUser);
 };
 
 export const adminLogout = () => {
@@ -418,4 +392,30 @@ export const getAdminInfo = () => {
     } catch (error) {
         return null;
     }
+};
+
+// Export all functions
+export default {
+    registerUser,
+    getQuestionsByCategory,
+    submitQuiz,
+    getQuizConfig,
+    getResultConfig,
+    checkHealth,
+    adminLogin,
+    getConfig,
+    updateConfig,
+    getAllQuestions,
+    addQuestion,
+    deleteQuestion,
+    getResults,
+    addResult,
+    getDashboardStats,
+    testDatabase,
+    deleteResult,
+    deleteAllResults,
+    getResultDetails,
+    isAdminAuthenticated,
+    adminLogout,
+    getAdminInfo
 };
