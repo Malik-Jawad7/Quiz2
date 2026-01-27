@@ -1,5 +1,4 @@
-﻿// App.jsx
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Register from './pages/Register';
 import Quiz from './pages/Quiz';
@@ -30,6 +29,18 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Protected Route Component for Quiz
+const QuizRoute = ({ children }) => {
+  const userId = localStorage.getItem('userId');
+  const category = localStorage.getItem('category');
+  
+  if (!userId || !category) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
+
 // Main App Component
 function App() {
   return (
@@ -39,7 +50,11 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Register />} />
-          <Route path="/quiz" element={<Quiz />} />
+          <Route path="/quiz" element={
+            <QuizRoute>
+              <Quiz />
+            </QuizRoute>
+          } />
           <Route path="/result" element={<Result />} />
           
           {/* Admin Routes */}
