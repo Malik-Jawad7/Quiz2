@@ -1,25 +1,23 @@
 {
   "name": "shamsi-quiz-frontend",
-  "version": "1.0.0",
   "private": true,
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "deploy": "npm run build && vercel --prod"
+    "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.13.4",
+    "axios": "^1.6.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.3",
-    "terser": "^5.27.0"
+    "react-router-dom": "^6.20.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@vitejs/plugin-react": "^4.2.0",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
     "vite": "^5.0.0"
   }
 }
