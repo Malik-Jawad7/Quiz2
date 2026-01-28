@@ -1,422 +1,381 @@
-// src/services/api.jsx
-import axios from 'axios';
+// api.js (Frontend API file)
+import axios from "axios";
 
-// ================= CONFIGURATION =================
-const API_URL = 'https://backend-r58y9vkx6-khalids-projects-3de9ee65.vercel.app/api';
-
-console.log('📡 API URL:', API_URL);
+const API_URL = "http://localhost:5000/api";
 
 // Create axios instance
-const api = axios.create({
+const axiosInstance = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Origin': 'http://localhost:5173'
+    "Content-Type": "application/json",
   },
-  withCredentials: false
 });
 
 // Request interceptor
-api.interceptors.request.use(
-  config => {
-    console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
-    
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    
-    return config;
-  },
-  error => {
-    console.error('❌ Request Error:', error);
-    return Promise.reject(error);
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("adminToken");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+});
 
-// ========== ALL EXPORTED FUNCTIONS ==========
-
-// 1. Health Check
-export const checkHealth = async () => {
+// ==================== QUIZ APIs ====================
+export const getQuizQuestions = async (category) => {
   try {
-    console.log('🔍 Checking backend health...');
-    
-    const response = await api.get('/health');
+    const response = await axiosInstance.get(`/quiz/questions/${category}`);
     return response;
   } catch (error) {
-    console.log('❌ Health check failed:', error.message);
-    
-    // Assume backend is working
-    return {
-      data: {
-        success: true,
-        message: 'Backend is reachable',
-        database: 'Connected',
-        environment: 'Production'
-      }
-    };
-  }
-};
-
-// 2. Admin Login
-export const adminLogin = async (loginData) => {
-  try {
-    console.log('🚀 Attempting admin login...');
-    
-    const response = await api.post('/admin/login', loginData);
-    
-    if (response.data.success) {
-      localStorage.setItem('adminToken', response.data.token);
-      localStorage.setItem('adminUser', JSON.stringify(response.data.user));
-    }
-    
-    return response;
-  } catch (error) {
-    console.error('Login error:', error);
-    
-    // Use mock login for development
-    if (loginData.username === 'admin' && loginData.password === 'admin123') {
-      console.log('✅ Using mock login for development');
-      
-      const mockToken = 'dev_mock_token_' + Date.now();
-      const mockUser = {
-        id: 'mock_admin_id',
-        username: 'admin',
-        role: 'admin',
-        permissions: ['all']
-      };
-      
-      localStorage.setItem('adminToken', mockToken);
-      localStorage.setItem('adminUser', JSON.stringify(mockUser));
-      
-      return {
-        data: {
-          success: true,
-          message: 'Login successful (Development Mode)',
-          token: mockToken,
-          user: mockUser
-        }
-      };
-    }
-    
+    console.error("Error fetching quiz questions:", error);
     throw error;
   }
 };
 
-// 3. Get Quiz Configuration
-export const getQuizConfig = async () => {
-  try {
-    const response = await api.get('/config');
-    return response;
-  } catch (error) {
-    console.log('Using fallback config');
-    return {
-      data: {
-        success: true,
-        config: {
-          quizTime: 30,
-          passingPercentage: 40,
-          totalQuestions: 50,
-          maxMarks: 100
-        }
-      }
-    };
-  }
-};
-
-// 4. User Registration
-export const registerUser = async (userData) => {
-  try {
-    console.log('Registering user:', userData);
-    
-    const response = await api.post('/auth/register', userData);
-    return response;
-  } catch (error) {
-    console.error('Registration error:', error);
-    
-    // Mock registration for development
-    return {
-      data: {
-        success: true,
-        message: 'Registration successful (Mock Mode)',
-        userId: 'mock_user_' + Date.now(),
-        user: userData
-      }
-    };
-  }
-};
-
-// 5. Get Questions by Category
-export const getQuestionsByCategory = async (category) => {
-  try {
-    console.log('Getting questions for:', category);
-    
-    const response = await api.get(`/user/questions/${category}`);
-    return response;
-  } catch (error) {
-    console.error('Get questions error:', error);
-    
-    // Mock questions for development
-    const mockQuestions = [
-      {
-        _id: 'q1',
-        category: category,
-        questionText: 'What is HTML?',
-        difficulty: 'easy',
-        marks: 1,
-        options: [
-          { text: 'Hyper Text Markup Language', isCorrect: true, optionIndex: 1 },
-          { text: 'High Tech Modern Language', isCorrect: false, optionIndex: 2 },
-          { text: 'Hyper Transfer Markup Language', isCorrect: false, optionIndex: 3 },
-          { text: 'Home Tool Markup Language', isCorrect: false, optionIndex: 4 }
-        ]
-      },
-      {
-        _id: 'q2',
-        category: category,
-        questionText: 'What is CSS used for?',
-        difficulty: 'easy',
-        marks: 1,
-        options: [
-          { text: 'Database Management', isCorrect: false, optionIndex: 1 },
-          { text: 'Styling web pages', isCorrect: true, optionIndex: 2 },
-          { text: 'Server-side programming', isCorrect: false, optionIndex: 3 },
-          { text: 'Mobile app development', isCorrect: false, optionIndex: 4 }
-        ]
-      }
-    ];
-    
-    return {
-      data: {
-        success: true,
-        questions: mockQuestions
-      }
-    };
-  }
-};
-
-// 6. Submit Quiz
 export const submitQuiz = async (quizData) => {
   try {
-    console.log('Submitting quiz:', quizData);
-    
-    const response = await api.post('/user/submit', quizData);
+    const response = await axiosInstance.post("/quiz/submit", quizData);
     return response;
   } catch (error) {
-    console.error('Submit quiz error:', error);
-    
-    // Mock result for development
-    const mockResult = {
-      score: 8,
-      totalMarks: 10,
-      percentage: 80,
-      passed: true,
-      passingPercentage: 40
-    };
-    
-    return {
-      data: {
-        success: true,
-        message: 'Quiz submitted successfully (Mock Mode)',
-        result: mockResult
-      }
-    };
-  }
-};
-
-// 7. Test Database
-export const testDatabase = async () => {
-  try {
-    const response = await api.get('/test-db');
-    return response;
-  } catch (error) {
-    return {
-      data: {
-        success: false,
-        message: 'Database connection failed'
-      }
-    };
-  }
-};
-
-// 8. Get All Questions (Admin)
-export const getAllQuestions = async () => {
-  try {
-    const response = await api.get('/admin/questions');
-    return response;
-  } catch (error) {
-    return {
-      data: {
-        success: true,
-        questions: []
-      }
-    };
-  }
-};
-
-// 9. Add Question (Admin)
-export const addQuestion = async (questionData) => {
-  try {
-    const response = await api.post('/admin/questions', questionData);
-    return response;
-  } catch (error) {
+    console.error("Error submitting quiz:", error);
     throw error;
   }
 };
 
-// 10. Delete Question (Admin)
-export const deleteQuestion = async (id) => {
+export const getResult = async (rollNumber) => {
   try {
-    const response = await api.delete(`/admin/questions/${id}`);
+    const response = await axiosInstance.get(`/result/${rollNumber}`);
     return response;
   } catch (error) {
+    console.error("Error fetching result:", error);
     throw error;
   }
 };
 
-// 11. Get Results (Admin)
-export const getResults = async () => {
+export const registerUser = async (userData) => {
   try {
-    const response = await api.get('/admin/users');
+    const response = await axiosInstance.post("/auth/register", userData);
+    if (response.data.success) {
+      localStorage.setItem("userData", JSON.stringify(response.data.user));
+    }
     return response;
   } catch (error) {
-    return {
-      data: {
-        success: true,
-        results: []
-      }
-    };
-  }
-};
-
-// 12. Add Result (Admin)
-export const addResult = async (resultData) => {
-  try {
-    const response = await api.post('/admin/results', resultData);
-    return response;
-  } catch (error) {
+    console.error("Registration error:", error);
     throw error;
   }
 };
 
-// 13. Delete Result (Admin)
-export const deleteResult = async (id) => {
+// ==================== ADMIN APIs ====================
+export const adminLogin = async (loginData) => {
   try {
-    const response = await api.delete(`/admin/results/${id}`);
+    const response = await axiosInstance.post("/admin/login", loginData);
     return response;
   } catch (error) {
+    console.error("Admin login error:", error);
     throw error;
   }
-};
-
-// 14. Delete All Results (Admin)
-export const deleteAllResults = async () => {
-  try {
-    const response = await api.delete('/admin/results');
-    return response;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// 15. Get Dashboard Stats (Admin)
-export const getDashboardStats = async () => {
-  try {
-    const response = await api.get('/admin/dashboard');
-    return response;
-  } catch (error) {
-    return {
-      data: {
-        success: true,
-        stats: {
-          totalStudents: 0,
-          totalQuestions: 0,
-          totalAttempts: 0,
-          averageScore: 0,
-          passRate: 0,
-          todayAttempts: 0,
-          totalCategories: 0,
-          activeStudents: 0
-        }
-      }
-    };
-  }
-};
-
-// 16. Get Config (Admin)
-export const getConfig = async () => {
-  try {
-    const response = await api.get('/config');
-    return response;
-  } catch (error) {
-    return {
-      data: {
-        success: true,
-        config: {
-          quizTime: 30,
-          passingPercentage: 40,
-          totalQuestions: 50,
-          maxMarks: 100
-        }
-      }
-    };
-  }
-};
-
-// 17. Update Config (Admin)
-export const updateConfig = async (configData) => {
-  try {
-    const response = await api.put('/admin/config', configData);
-    return response;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// ========== HELPER FUNCTIONS ==========
-
-export const isAdminAuthenticated = () => {
-  const token = localStorage.getItem('adminToken');
-  const adminUser = localStorage.getItem('adminUser');
-  return !!(token && adminUser);
 };
 
 export const adminLogout = () => {
-  localStorage.removeItem('adminToken');
-  localStorage.removeItem('adminUser');
+  localStorage.removeItem("adminToken");
+  localStorage.removeItem("adminUser");
+  window.location.href = "/admin/login";
+};
+
+export const isAdminAuthenticated = () => {
+  return !!localStorage.getItem("adminToken");
 };
 
 export const getAdminInfo = () => {
   try {
-    const adminUser = localStorage.getItem('adminUser');
+    const adminUser = localStorage.getItem("adminUser");
     return adminUser ? JSON.parse(adminUser) : null;
   } catch (error) {
     return null;
   }
 };
 
-// Default export
-export default {
-  registerUser,
-  getQuestionsByCategory,
+export const getAvailableCategories = async () => {
+  try {
+    const response = await axiosInstance.get("/categories");
+    return response;
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    throw error;
+  }
+};
+
+export const getConfig = async () => {
+  try {
+    const response = await axiosInstance.get("/config");
+    return response;
+  } catch (error) {
+    console.error("Error fetching config:", error);
+    throw error;
+  }
+};
+
+export const updateConfig = async (configData) => {
+  try {
+    const response = await axiosInstance.put("/config", configData);
+    return response;
+  } catch (error) {
+    console.error("Error updating config:", error);
+    throw error;
+  }
+};
+
+// ==================== QUESTION MANAGEMENT ====================
+export const getAllQuestions = async () => {
+  try {
+    const response = await axiosInstance.get("/admin/questions");
+    return response;
+  } catch (error) {
+    console.error("Error fetching questions:", error);
+    throw error;
+  }
+};
+
+export const addQuestion = async (questionData) => {
+  try {
+    const response = await axiosInstance.post("/admin/questions", questionData);
+    return response;
+  } catch (error) {
+    console.error("Error adding question:", error);
+    throw error;
+  }
+};
+
+export const deleteQuestion = async (questionId) => {
+  try {
+    const response = await axiosInstance.delete(`/admin/questions/${questionId}`);
+    return response;
+  } catch (error) {
+    console.error("Error deleting question:", error);
+    throw error;
+  }
+};
+
+export const deleteAllQuestions = async () => {
+  try {
+    const response = await axiosInstance.delete("/admin/questions?confirm=true");
+    return response;
+  } catch (error) {
+    console.error("Error deleting all questions:", error);
+    throw error;
+  }
+};
+
+// ==================== RESULT MANAGEMENT ====================
+export const getResults = async () => {
+  try {
+    const response = await axiosInstance.get("/admin/results");
+    return response;
+  } catch (error) {
+    console.error("Error fetching results:", error);
+    throw error;
+  }
+};
+
+export const deleteResult = async (resultId) => {
+  try {
+    const response = await axiosInstance.delete(`/admin/results/${resultId}`);
+    return response;
+  } catch (error) {
+    console.error("Error deleting result:", error);
+    throw error;
+  }
+};
+
+export const deleteAllResults = async () => {
+  try {
+    const response = await axiosInstance.delete("/admin/results?confirm=true");
+    return response;
+  } catch (error) {
+    console.error("Error deleting all results:", error);
+    throw error;
+  }
+};
+
+// ==================== DASHBOARD ====================
+export const getDashboardStats = async () => {
+  try {
+    const response = await axiosInstance.get("/admin/dashboard");
+    return response;
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    throw error;
+  }
+};
+
+// ==================== UTILITY FUNCTIONS ====================
+export const healthCheck = async () => {
+  try {
+    const response = await axiosInstance.get("/health");
+    return response.data;
+  } catch (error) {
+    console.error("Health check failed:", error);
+    return { success: false, message: "Backend server is not responding" };
+  }
+};
+
+// CSV Export Functions (Client-side)
+export const exportResultsToCSV = (results) => {
+  if (!results || results.length === 0) {
+    alert("No results to export");
+    return;
+  }
+
+  const csvContent = [
+    ["Name", "Roll Number", "Category", "Score", "Total Marks", "Percentage", "Status", "Date"],
+    ...results.map((result) => {
+      const percentage = parseFloat(result.percentage) || 0;
+      const passed = result.passed || percentage >= 40;
+      return [
+        result.name,
+        result.rollNumber,
+        result.category,
+        result.score,
+        result.totalMarks,
+        `${percentage.toFixed(2)}%`,
+        passed ? "PASSED" : "FAILED",
+        new Date(result.createdAt).toLocaleDateString(),
+      ];
+    }),
+  ]
+    .map((row) => row.join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `shamsi-results-${new Date().toISOString().split("T")[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+};
+
+export const exportQuestionsToCSV = (questions) => {
+  if (!questions || questions.length === 0) {
+    alert("No questions to export");
+    return;
+  }
+
+  const csvContent = [
+    [
+      "Category",
+      "Question",
+      "Option A",
+      "Option B",
+      "Option C",
+      "Option D",
+      "Correct Answer",
+      "Marks",
+      "Difficulty",
+    ],
+    ...questions.map((q) => {
+      // Find correct option index
+      const correctIndex = q.options ? q.options.findIndex((opt) => opt.isCorrect) : -1;
+      const correctAnswer = correctIndex >= 0 ? String.fromCharCode(65 + correctIndex) : "N/A";
+      
+      return [
+        q.category,
+        q.questionText,
+        q.options && q.options[0] ? q.options[0].text : "",
+        q.options && q.options[1] ? q.options[1].text : "",
+        q.options && q.options[2] ? q.options[2].text : "",
+        q.options && q.options[3] ? q.options[3].text : "",
+        correctAnswer,
+        q.marks || 1,
+        q.difficulty || "medium",
+      ];
+    }),
+  ]
+    .map((row) => row.join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `shamsi-questions-${new Date().toISOString().split("T")[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+};
+
+// Missing functions that might be needed
+export const getCategoryStats = async () => {
+  try {
+    const response = await axiosInstance.get("/admin/dashboard");
+    return response;
+  } catch (error) {
+    console.error("Error fetching category stats:", error);
+    return {
+      data: {
+        success: true,
+        categoryStats: [
+          { category: "html", questions: 5, attempts: 0 },
+          { category: "css", questions: 5, attempts: 0 },
+          { category: "javascript", questions: 5, attempts: 0 },
+          { category: "react", questions: 5, attempts: 0 },
+          { category: "mern", questions: 5, attempts: 0 }
+        ]
+      }
+    };
+  }
+};
+
+export const getResultDetails = async (resultId) => {
+  try {
+    const response = await axiosInstance.get(`/admin/results/${resultId}`);
+    return response;
+  } catch (error) {
+    console.error("Error fetching result details:", error);
+    throw error;
+  }
+};
+
+// ==================== DEFAULT EXPORT ====================
+const apiService = {
+  // Quiz APIs
+  getQuizQuestions,
   submitQuiz,
-  getQuizConfig,
-  checkHealth,
+  getResult,
+  registerUser,
+  
+  // Admin APIs
   adminLogin,
+  adminLogout,
+  isAdminAuthenticated,
+  getAdminInfo,
+  getAvailableCategories,
   getConfig,
   updateConfig,
+  
+  // Question Management
   getAllQuestions,
   addQuestion,
   deleteQuestion,
+  deleteAllQuestions,
+  
+  // Result Management
   getResults,
-  getDashboardStats,
-  testDatabase,
   deleteResult,
   deleteAllResults,
-  addResult,
-  isAdminAuthenticated,
-  adminLogout,
-  getAdminInfo
+  getResultDetails,
+  
+  // Dashboard
+  getDashboardStats,
+  getCategoryStats,
+  
+  // Utility
+  healthCheck,
+  exportResultsToCSV,
+  exportQuestionsToCSV,
 };
+
+export default apiService;

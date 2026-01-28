@@ -1,81 +1,45 @@
-﻿import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import Register from './pages/Register';
-import Quiz from './pages/Quiz';
-import Result from './pages/Result';
+﻿// src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AdminLogin from './pages/AdminLogin';
 import AdminPanel from './pages/AdminPanel';
-import './App.css';
+import Register from './pages/Register';
+import Quiz from './pages/Quiz'; // ✅ Quiz component شامل کریں
+import Result from './pages/Result'; // ✅ Result component شامل کریں
 
-// Scroll to top component
-const ScrollToTop = () => {
-  const { pathname } = useLocation();
-  
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
-  
-  return null;
-};
-
-// Protected Route Component for Admin
+// ✅ Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('adminToken');
+  const adminToken = localStorage.getItem('adminToken');
   
-  if (!token) {
-    return <Navigate to="/admin" replace />;
+  if (!adminToken) {
+    // Redirect to admin login if not authenticated
+    return <Navigate to="/admin/login" replace />;
   }
   
   return children;
 };
 
-// Protected Route Component for Quiz
-const QuizRoute = ({ children }) => {
-  const userId = localStorage.getItem('userId');
-  const category = localStorage.getItem('category');
-  
-  if (!userId || !category) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return children;
-};
-
-// Main App Component
 function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <div className="app">
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Register />} />
-          <Route path="/quiz" element={
-            <QuizRoute>
-              <Quiz />
-            </QuizRoute>
-          } />
-          <Route path="/result" element={<Result />} />
-          
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLogin />} />
-          <Route 
-            path="/admin/dashboard" 
-            element={
-              <ProtectedRoute>
-                <AdminPanel />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Fallback Routes */}
-          <Route path="/register" element={<Navigate to="/" replace />} />
-          <Route path="/home" element={<Navigate to="/" replace />} />
-          
-          {/* Catch-all Route - Redirect to Home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<Navigate to="/register" replace />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/quiz" element={<Quiz />} />
+        <Route path="/result" element={<Result />} />
+        
+        {/* Protected Admin Routes */}
+        <Route path="/admin/dashboard" element={
+          <ProtectedRoute>
+            <AdminPanel />
+          </ProtectedRoute>
+        } />
+        
+        {/* 404 Route */}
+        <Route path="*" element={<Navigate to="/register" replace />} />
+      </Routes>
     </Router>
   );
 }
