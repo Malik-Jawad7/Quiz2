@@ -53,12 +53,13 @@ export const getResult = async (rollNumber) => {
   }
 };
 
-// ✅ ADD THIS - This was missing
 export const registerUser = async (userData) => {
   try {
     const response = await axiosInstance.post('/auth/register', userData);
     if (response.data.success) {
       localStorage.setItem('userData', JSON.stringify(response.data.user));
+      localStorage.setItem('quizCategory', response.data.user.category);
+      localStorage.setItem('quizRollNumber', response.data.user.rollNumber);
     }
     return response;
   } catch (error) {
@@ -70,7 +71,6 @@ export const registerUser = async (userData) => {
 // ==================== ADMIN APIs ====================
 export const adminLogin = async (loginData) => {
   try {
-    console.log('Sending login request to:', `${API_URL}/admin/login`);
     const response = await axiosInstance.post('/admin/login', loginData);
     
     if (response.data.success) {
@@ -80,8 +80,7 @@ export const adminLogin = async (loginData) => {
     
     return response;
   } catch (error) {
-    console.error('Admin login error:', error.message);
-    console.error('Response data:', error.response?.data);
+    console.error('Admin login error:', error);
     throw error;
   }
 };
@@ -206,6 +205,28 @@ export const exportQuestionsToCSV = () => {
   return Promise.resolve({ data: { success: true, message: 'Feature coming soon' } });
 };
 
+// Get user data from localStorage
+export const getUserData = () => {
+  try {
+    const userData = localStorage.getItem('userData');
+    return userData ? JSON.parse(userData) : null;
+  } catch (error) {
+    return null;
+  }
+};
+
+// Check if user is registered
+export const isUserRegistered = () => {
+  return !!localStorage.getItem('userData');
+};
+
+// Clear user data
+export const clearUserData = () => {
+  localStorage.removeItem('userData');
+  localStorage.removeItem('quizCategory');
+  localStorage.removeItem('quizRollNumber');
+};
+
 // Test API connection
 export const healthCheck = async () => {
   try {
@@ -221,13 +242,16 @@ export const healthCheck = async () => {
   }
 };
 
-// ==================== DEFAULT EXPORT ====================
+// Default export
 const apiService = {
   // Quiz APIs
   getQuizQuestions,
   submitQuiz,
   getResult,
-  registerUser, // ✅ Added
+  registerUser,
+  getUserData,
+  isUserRegistered,
+  clearUserData,
   
   // Admin APIs
   adminLogin,
