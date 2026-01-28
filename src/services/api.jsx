@@ -1,43 +1,61 @@
-// api.js (Frontend API file)
-import axios from "axios";
-
-const API_URL = "http://localhost:5000/api";
+// api.js - Updated for Vercel deployment
+const API_URL = import.meta.env.VITE_API_URL || 'https://backend-one-taupe-14.vercel.app/api';
 
 // Create axios instance
 const axiosInstance = axios.create({
   baseURL: API_URL,
   timeout: 30000,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
+  withCredentials: false
 });
 
 // Request interceptor
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("adminToken");
+  const token = localStorage.getItem('adminToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
+// Response interceptor for better error handling
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.code === 'ECONNABORTED') {
+      console.error('Request timeout:', error.config.url);
+      return Promise.reject(new Error('Request timeout. Please check your internet connection.'));
+    }
+    
+    if (!error.response) {
+      console.error('Network error:', error.message);
+      return Promise.reject(new Error('Network error. Please check your internet connection.'));
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 // ==================== QUIZ APIs ====================
 export const getQuizQuestions = async (category) => {
   try {
+    console.log(`Fetching questions for category: ${category}`);
     const response = await axiosInstance.get(`/quiz/questions/${category}`);
     return response;
   } catch (error) {
-    console.error("Error fetching quiz questions:", error);
+    console.error('Error fetching quiz questions:', error.response?.data || error.message);
     throw error;
   }
 };
 
 export const submitQuiz = async (quizData) => {
   try {
-    const response = await axiosInstance.post("/quiz/submit", quizData);
+    const response = await axiosInstance.post('/quiz/submit', quizData);
     return response;
   } catch (error) {
-    console.error("Error submitting quiz:", error);
+    console.error('Error submitting quiz:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -47,20 +65,20 @@ export const getResult = async (rollNumber) => {
     const response = await axiosInstance.get(`/result/${rollNumber}`);
     return response;
   } catch (error) {
-    console.error("Error fetching result:", error);
+    console.error('Error fetching result:', error.response?.data || error.message);
     throw error;
   }
 };
 
 export const registerUser = async (userData) => {
   try {
-    const response = await axiosInstance.post("/auth/register", userData);
+    const response = await axiosInstance.post('/auth/register', userData);
     if (response.data.success) {
-      localStorage.setItem("userData", JSON.stringify(response.data.user));
+      localStorage.setItem('userData', JSON.stringify(response.data.user));
     }
     return response;
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error('Registration error:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -68,27 +86,34 @@ export const registerUser = async (userData) => {
 // ==================== ADMIN APIs ====================
 export const adminLogin = async (loginData) => {
   try {
-    const response = await axiosInstance.post("/admin/login", loginData);
+    console.log('Attempting admin login with:', loginData);
+    const response = await axiosInstance.post('/admin/login', loginData);
+    
+    if (response.data.success) {
+      localStorage.setItem('adminToken', 'dummy-token-for-auth');
+      localStorage.setItem('adminUser', JSON.stringify(response.data.user));
+    }
+    
     return response;
   } catch (error) {
-    console.error("Admin login error:", error);
+    console.error('Admin login error:', error.response?.data || error.message);
     throw error;
   }
 };
 
 export const adminLogout = () => {
-  localStorage.removeItem("adminToken");
-  localStorage.removeItem("adminUser");
-  window.location.href = "/admin/login";
+  localStorage.removeItem('adminToken');
+  localStorage.removeItem('adminUser');
+  window.location.href = '/admin/login';
 };
 
 export const isAdminAuthenticated = () => {
-  return !!localStorage.getItem("adminToken");
+  return !!localStorage.getItem('adminToken');
 };
 
 export const getAdminInfo = () => {
   try {
-    const adminUser = localStorage.getItem("adminUser");
+    const adminUser = localStorage.getItem('adminUser');
     return adminUser ? JSON.parse(adminUser) : null;
   } catch (error) {
     return null;
@@ -97,30 +122,30 @@ export const getAdminInfo = () => {
 
 export const getAvailableCategories = async () => {
   try {
-    const response = await axiosInstance.get("/categories");
+    const response = await axiosInstance.get('/categories');
     return response;
   } catch (error) {
-    console.error("Error fetching categories:", error);
+    console.error('Error fetching categories:', error.response?.data || error.message);
     throw error;
   }
 };
 
 export const getConfig = async () => {
   try {
-    const response = await axiosInstance.get("/config");
+    const response = await axiosInstance.get('/config');
     return response;
   } catch (error) {
-    console.error("Error fetching config:", error);
+    console.error('Error fetching config:', error.response?.data || error.message);
     throw error;
   }
 };
 
 export const updateConfig = async (configData) => {
   try {
-    const response = await axiosInstance.put("/config", configData);
+    const response = await axiosInstance.put('/config', configData);
     return response;
   } catch (error) {
-    console.error("Error updating config:", error);
+    console.error('Error updating config:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -128,20 +153,20 @@ export const updateConfig = async (configData) => {
 // ==================== QUESTION MANAGEMENT ====================
 export const getAllQuestions = async () => {
   try {
-    const response = await axiosInstance.get("/admin/questions");
+    const response = await axiosInstance.get('/admin/questions');
     return response;
   } catch (error) {
-    console.error("Error fetching questions:", error);
+    console.error('Error fetching questions:', error.response?.data || error.message);
     throw error;
   }
 };
 
 export const addQuestion = async (questionData) => {
   try {
-    const response = await axiosInstance.post("/admin/questions", questionData);
+    const response = await axiosInstance.post('/admin/questions', questionData);
     return response;
   } catch (error) {
-    console.error("Error adding question:", error);
+    console.error('Error adding question:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -151,17 +176,7 @@ export const deleteQuestion = async (questionId) => {
     const response = await axiosInstance.delete(`/admin/questions/${questionId}`);
     return response;
   } catch (error) {
-    console.error("Error deleting question:", error);
-    throw error;
-  }
-};
-
-export const deleteAllQuestions = async () => {
-  try {
-    const response = await axiosInstance.delete("/admin/questions?confirm=true");
-    return response;
-  } catch (error) {
-    console.error("Error deleting all questions:", error);
+    console.error('Error deleting question:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -169,10 +184,10 @@ export const deleteAllQuestions = async () => {
 // ==================== RESULT MANAGEMENT ====================
 export const getResults = async () => {
   try {
-    const response = await axiosInstance.get("/admin/results");
+    const response = await axiosInstance.get('/admin/results');
     return response;
   } catch (error) {
-    console.error("Error fetching results:", error);
+    console.error('Error fetching results:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -182,17 +197,7 @@ export const deleteResult = async (resultId) => {
     const response = await axiosInstance.delete(`/admin/results/${resultId}`);
     return response;
   } catch (error) {
-    console.error("Error deleting result:", error);
-    throw error;
-  }
-};
-
-export const deleteAllResults = async () => {
-  try {
-    const response = await axiosInstance.delete("/admin/results?confirm=true");
-    return response;
-  } catch (error) {
-    console.error("Error deleting all results:", error);
+    console.error('Error deleting result:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -200,10 +205,10 @@ export const deleteAllResults = async () => {
 // ==================== DASHBOARD ====================
 export const getDashboardStats = async () => {
   try {
-    const response = await axiosInstance.get("/admin/dashboard");
+    const response = await axiosInstance.get('/admin/dashboard');
     return response;
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error);
+    console.error('Error fetching dashboard stats:', error.response?.data || error.message);
     throw error;
   }
 };
@@ -211,131 +216,37 @@ export const getDashboardStats = async () => {
 // ==================== UTILITY FUNCTIONS ====================
 export const healthCheck = async () => {
   try {
-    const response = await axiosInstance.get("/health");
+    const response = await axiosInstance.get('/health');
     return response.data;
   } catch (error) {
-    console.error("Health check failed:", error);
-    return { success: false, message: "Backend server is not responding" };
-  }
-};
-
-// CSV Export Functions (Client-side)
-export const exportResultsToCSV = (results) => {
-  if (!results || results.length === 0) {
-    alert("No results to export");
-    return;
-  }
-
-  const csvContent = [
-    ["Name", "Roll Number", "Category", "Score", "Total Marks", "Percentage", "Status", "Date"],
-    ...results.map((result) => {
-      const percentage = parseFloat(result.percentage) || 0;
-      const passed = result.passed || percentage >= 40;
-      return [
-        result.name,
-        result.rollNumber,
-        result.category,
-        result.score,
-        result.totalMarks,
-        `${percentage.toFixed(2)}%`,
-        passed ? "PASSED" : "FAILED",
-        new Date(result.createdAt).toLocaleDateString(),
-      ];
-    }),
-  ]
-    .map((row) => row.join(","))
-    .join("\n");
-
-  const blob = new Blob([csvContent], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `shamsi-results-${new Date().toISOString().split("T")[0]}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
-};
-
-export const exportQuestionsToCSV = (questions) => {
-  if (!questions || questions.length === 0) {
-    alert("No questions to export");
-    return;
-  }
-
-  const csvContent = [
-    [
-      "Category",
-      "Question",
-      "Option A",
-      "Option B",
-      "Option C",
-      "Option D",
-      "Correct Answer",
-      "Marks",
-      "Difficulty",
-    ],
-    ...questions.map((q) => {
-      // Find correct option index
-      const correctIndex = q.options ? q.options.findIndex((opt) => opt.isCorrect) : -1;
-      const correctAnswer = correctIndex >= 0 ? String.fromCharCode(65 + correctIndex) : "N/A";
-      
-      return [
-        q.category,
-        q.questionText,
-        q.options && q.options[0] ? q.options[0].text : "",
-        q.options && q.options[1] ? q.options[1].text : "",
-        q.options && q.options[2] ? q.options[2].text : "",
-        q.options && q.options[3] ? q.options[3].text : "",
-        correctAnswer,
-        q.marks || 1,
-        q.difficulty || "medium",
-      ];
-    }),
-  ]
-    .map((row) => row.join(","))
-    .join("\n");
-
-  const blob = new Blob([csvContent], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `shamsi-questions-${new Date().toISOString().split("T")[0]}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
-};
-
-// Missing functions that might be needed
-export const getCategoryStats = async () => {
-  try {
-    const response = await axiosInstance.get("/admin/dashboard");
-    return response;
-  } catch (error) {
-    console.error("Error fetching category stats:", error);
-    return {
-      data: {
-        success: true,
-        categoryStats: [
-          { category: "html", questions: 5, attempts: 0 },
-          { category: "css", questions: 5, attempts: 0 },
-          { category: "javascript", questions: 5, attempts: 0 },
-          { category: "react", questions: 5, attempts: 0 },
-          { category: "mern", questions: 5, attempts: 0 }
-        ]
-      }
+    console.error('Health check failed:', error.message);
+    return { 
+      success: false, 
+      message: 'Backend server is not responding',
+      error: error.message 
     };
   }
 };
 
-export const getResultDetails = async (resultId) => {
+// Test backend connection
+export const testBackendConnection = async () => {
   try {
-    const response = await axiosInstance.get(`/admin/results/${resultId}`);
-    return response;
+    const health = await healthCheck();
+    const categories = await getAvailableCategories();
+    
+    return {
+      success: true,
+      health,
+      categories: categories.data,
+      apiUrl: API_URL
+    };
   } catch (error) {
-    console.error("Error fetching result details:", error);
-    throw error;
+    return {
+      success: false,
+      message: 'Failed to connect to backend',
+      error: error.message,
+      apiUrl: API_URL
+    };
   }
 };
 
@@ -360,22 +271,17 @@ const apiService = {
   getAllQuestions,
   addQuestion,
   deleteQuestion,
-  deleteAllQuestions,
   
   // Result Management
   getResults,
   deleteResult,
-  deleteAllResults,
-  getResultDetails,
   
   // Dashboard
   getDashboardStats,
-  getCategoryStats,
   
   // Utility
   healthCheck,
-  exportResultsToCSV,
-  exportQuestionsToCSV,
+  testBackendConnection,
 };
 
 export default apiService;
