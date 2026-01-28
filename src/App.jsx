@@ -1,45 +1,35 @@
 ﻿// src/App.jsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Register from './pages/Register';
+import Quiz from './pages/Quiz';
+import Result from './pages/Result';
 import AdminLogin from './pages/AdminLogin';
 import AdminPanel from './pages/AdminPanel';
-import Register from './pages/Register';
-import Quiz from './pages/Quiz'; // ✅ Quiz component شامل کریں
-import Result from './pages/Result'; // ✅ Result component شامل کریں
-
-// ✅ Protected Route Component
-const ProtectedRoute = ({ children }) => {
-  const adminToken = localStorage.getItem('adminToken');
-  
-  if (!adminToken) {
-    // Redirect to admin login if not authenticated
-    return <Navigate to="/admin/login" replace />;
-  }
-  
-  return children;
-};
+import Home from './pages/Home';
+import './App.css';
 
 function App() {
   return (
-    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Navigate to="/register" replace />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/quiz" element={<Quiz />} />
-        <Route path="/result" element={<Result />} />
-        
-        {/* Protected Admin Routes */}
-        <Route path="/admin/dashboard" element={
-          <ProtectedRoute>
-            <AdminPanel />
-          </ProtectedRoute>
-        } />
-        
-        {/* 404 Route */}
-        <Route path="*" element={<Navigate to="/register" replace />} />
-      </Routes>
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={<Home />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/quiz" element={<Quiz />} />
+          <Route path="/result/:rollNumber" element={<Result />} />
+          <Route path="/result" element={<Result />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/dashboard" element={<AdminPanel />} />
+          <Route path="/admin" element={<Navigate to="/admin/login" />} />
+          
+          {/* 404 Redirect */}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </div>
     </Router>
   );
 }
