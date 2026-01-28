@@ -1,3 +1,4 @@
+// src/pages/Quiz.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getQuizQuestions, submitQuiz } from '../services/api';
@@ -6,51 +7,29 @@ import './Quiz.css';
 const Quiz = () => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes
+  const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes in seconds
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const [userData, setUserData] = useState(null);
-  const [config, setConfig] = useState({
-    quizTime: 30,
-    passingPercentage: 40,
-    totalQuestions: 50
-  });
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [showTimeWarning, setShowTimeWarning] = useState(false);
 
   useEffect(() => {
     // Check if user is registered
     const storedUserData = localStorage.getItem('userData');
-    const storedConfig = localStorage.getItem('quizConfig');
-    
-    if (!storedUserData) {
-      alert('Please register first!');
+    const category = localStorage.getItem('quizCategory');
+    const rollNumber = localStorage.getItem('quizRollNumber');
+
+    if (!storedUserData || !category || !rollNumber) {
       navigate('/register');
       return;
     }
 
-    try {
-      const user = JSON.parse(storedUserData);
-      setUserData(user);
-      
-      if (storedConfig) {
-        const configData = JSON.parse(storedConfig);
-        setConfig(configData);
-        setTimeLeft((configData.quizTime || 30) * 60);
-      }
-      
-      loadQuestions(user.category);
-    } catch (error) {
-      console.error('Error parsing user data:', error);
-      navigate('/register');
-    }
-  }, [navigate]);
-
-  useEffect(() => {
-    if (loading || questions.length === 0) return;
+    setUserData(JSON.parse(storedUserData));
+    loadQuestions(category);
     
+    // Start timer
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -58,126 +37,100 @@ const Quiz = () => {
           handleAutoSubmit();
           return 0;
         }
-        
-        // Show warning when 5 minutes left
-        if (prev === 300) {
-          setShowTimeWarning(true);
-          setTimeout(() => setShowTimeWarning(false), 10000);
-        }
-        
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [loading, questions.length]);
+  }, [navigate]);
 
   const loadQuestions = async (category) => {
     try {
       setLoading(true);
-      console.log(`Loading quiz questions for category: ${category}`);
-      
       const response = await getQuizQuestions(category);
       
       if (response.data.success) {
-        console.log('Questions loaded:', response.data.questions.length);
-        setQuestions(response.data.questions);
-        
-        // Initialize empty answers object
+        setQuestions(response.data.questions || []);
+        // Initialize answers object
         const initialAnswers = {};
-        response.data.questions.forEach(q => {
-          initialAnswers[q._id] = null;
+        response.data.questions?.forEach((q, index) => {
+          initialAnswers[index] = null;
         });
         setAnswers(initialAnswers);
-        
-        // Save to localStorage for backup
-        localStorage.setItem(`quiz_backup_${category}`, JSON.stringify({
-          questions: response.data.questions,
-          loadedAt: new Date().toISOString()
-        }));
       } else {
-        alert('Failed to load questions: ' + response.data.message);
-        navigate('/register');
+        setError('Failed to load questions');
       }
     } catch (error) {
       console.error('Error loading questions:', error);
-      
-      // Try to load from backup
-      const backupKey = `quiz_backup_${userData?.category}`;
-      const backup = localStorage.getItem(backupKey);
-      if (backup) {
-        const backupData = JSON.parse(backup);
-        setQuestions(backupData.questions);
-        
-        const initialAnswers = {};
-        backupData.questions.forEach(q => {
-          initialAnswers[q._id] = null;
-        });
-        setAnswers(initialAnswers);
-        
-        alert('Loaded questions from backup');
-      } else {
-        alert('Error loading questions. Please try again or contact administrator.');
-        navigate('/register');
-      }
+      setError('Failed to load quiz questions. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAnswerSelect = (questionId, optionText) => {
+  const handleAnswerSelect = (questionIndex, optionText) => {
     setAnswers(prev => ({
       ...prev,
-      [questionId]: optionText
+      [questionIndex]: optionText
     }));
   };
 
-  const handleSubmit = async () => {
-    if (submitting) return;
-    
-    setSubmitting(true);
-    try {
-      // Prepare answers for submission
-      const submittedAnswers = Object.entries(answers)
-        .filter(([_, answer]) => answer !== null)
-        .map(([questionId, selectedOption]) => ({
-          questionId,
-          selectedOption
-        }));
-      
-      const submitData = {
-        rollNumber: userData.rollNumber,
-        answers: submittedAnswers,
-        timeLeft: timeLeft
-      };
-      
-      console.log('Submitting quiz with answers:', submittedAnswers.length);
-      
-      const response = await submitQuiz(submitData);
-      
-      if (response.data.success) {
-        // Save result to localStorage
-        localStorage.setItem('quizResult', JSON.stringify(response.data.result));
-        
-        // Cleanup
-        localStorage.removeItem('userData');
-        localStorage.removeItem(`quiz_backup_${userData.category}`);
-        
-        // Navigate to result page
-        navigate('/result');
-      } else {
-        throw new Error(response.data.message || 'Submission failed');
-      }
-    } catch (error) {
-      console.error('Submit error:', error);
-      alert('Submission failed: ' + error.message);
-      setSubmitting(false);
+  const handleNext = () => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentQuestion > 0) {
+      setCurrentQuestion(currentQuestion - 1);
     }
   };
 
   const handleAutoSubmit = async () => {
-    alert('⏰ Time is up! Automatically submitting your quiz...');
-    await handleSubmit();
+    await submitQuizForm();
+  };
+
+  const handleSubmit = async () => {
+    if (window.confirm('Are you sure you want to submit the quiz? You cannot change answers after submission.')) {
+      await submitQuizForm();
+    }
+  };
+
+  const submitQuizForm = async () => {
+    try {
+      setSubmitting(true);
+      const rollNumber = localStorage.getItem('quizRollNumber');
+      
+      const answersArray = Object.entries(answers).map(([index, answer]) => ({
+        questionId: questions[parseInt(index)]?._id,
+        selectedOption: answer
+      })).filter(item => item.questionId && item.selectedOption);
+
+      const quizData = {
+        rollNumber,
+        answers: answersArray,
+        timeLeft
+      };
+
+      const response = await submitQuiz(quizData);
+      
+      if (response.data.success) {
+        // Clear quiz data from localStorage
+        localStorage.removeItem('quizCategory');
+        localStorage.removeItem('quizAnswers');
+        
+        // Navigate to result page
+        navigate(`/result/${rollNumber}`);
+      } else {
+        setError(response.data.message || 'Failed to submit quiz');
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      setError('Failed to submit quiz. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const formatTime = (seconds) => {
@@ -186,333 +139,228 @@ const Quiz = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getAnsweredCount = () => {
-    return Object.values(answers).filter(answer => answer !== null).length;
-  };
-
-  const getQuestionStatus = (questionId) => {
-    return answers[questionId] ? 'answered' : 'unanswered';
+  const calculateProgress = () => {
+    const answered = Object.values(answers).filter(answer => answer !== null).length;
+    return Math.round((answered / questions.length) * 100);
   };
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="spinner">
-          <div className="spinner-circle"></div>
-        </div>
-        <p>📚 Loading your assessment from database...</p>
-        <p className="loading-subtext">Please wait while we fetch your questions</p>
+      <div className="quiz-loading">
+        <div className="loading-spinner"></div>
+        <h3>Loading Quiz Questions...</h3>
+        <p>Please wait while we prepare your quiz</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="quiz-error">
+        <div className="error-icon">⚠️</div>
+        <h3>Error Loading Quiz</h3>
+        <p>{error}</p>
+        <button onClick={() => navigate('/register')} className="btn-primary">
+          Go Back to Registration
+        </button>
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="no-questions-container">
-        <div className="no-questions-card">
-          <h2>📭 No Questions Available</h2>
-          <p>We couldn't find any questions for your selected category.</p>
-          <p>Please contact your administrator or try a different category.</p>
-          <button 
-            onClick={() => navigate('/register')}
-            className="back-to-register-btn"
-          >
-            ← Back to Registration
-          </button>
-        </div>
+      <div className="quiz-empty">
+        <div className="empty-icon">📭</div>
+        <h3>No Questions Available</h3>
+        <p>No questions found for your selected category</p>
+        <button onClick={() => navigate('/register')} className="btn-primary">
+          Choose Different Category
+        </button>
       </div>
     );
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
-  const currentAnswer = answers[currentQuestion._id];
+  const currentQ = questions[currentQuestion];
+  const isAnswered = answers[currentQuestion] !== null;
+  const progress = calculateProgress();
 
   return (
     <div className="quiz-container">
-      {/* Time Warning */}
-      {showTimeWarning && (
-        <div className="time-warning-overlay">
-          <div className="time-warning-card">
-            <div className="warning-icon">⏰</div>
-            <h3>Time Warning!</h3>
-            <p>Only 5 minutes remaining. Please submit your quiz soon.</p>
-            <button 
-              onClick={() => setShowTimeWarning(false)}
-              className="warning-close-btn"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Modal */}
-      {showConfirmModal && (
-        <div className="modal-overlay">
-          <div className="confirm-modal">
-            <h3>📝 Submit Assessment</h3>
-            <p>Are you sure you want to submit your answers?</p>
-            
-            <div className="submission-stats">
-              <div className="stat-item">
-                <div className="stat-value">{getAnsweredCount()}</div>
-                <div className="stat-label">Answered</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value">{questions.length - getAnsweredCount()}</div>
-                <div className="stat-label">Unanswered</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value">{questions.length}</div>
-                <div className="stat-label">Total Questions</div>
-              </div>
-            </div>
-            
-            <div className="modal-actions">
-              <button 
-                className="modal-btn cancel-btn"
-                onClick={() => setShowConfirmModal(false)}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button 
-                className="modal-btn submit-btn"
-                onClick={handleSubmit}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <>
-                    <span className="spinner-small"></span>
-                    Submitting...
-                  </>
-                ) : (
-                  'Submit Now'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Quiz Header */}
-      <div className="quiz-header">
+      <header className="quiz-header">
         <div className="header-left">
-          <div className="logo-section">
-            <div className="logo">🎓</div>
-            <div>
-              <h1>Shamsi Institute</h1>
-              <p className="subtitle">Technical Skills Assessment</p>
+          <h1>Shamsi Institute Quiz</h1>
+          {userData && (
+            <div className="user-info">
+              <span><strong>Name:</strong> {userData.name}</span>
+              <span><strong>Roll No:</strong> {userData.rollNumber}</span>
+              <span><strong>Category:</strong> {userData.category.toUpperCase()}</span>
             </div>
-          </div>
-          
-          <div className="user-info-section">
-            <div className="info-row">
-              <span className="info-label">Student:</span>
-              <span className="info-value">{userData?.name}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Roll No:</span>
-              <span className="info-value">{userData?.rollNumber}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Category:</span>
-              <span className="info-value category-badge">
-                {userData?.category?.toUpperCase()}
-              </span>
-            </div>
-          </div>
+          )}
         </div>
         
         <div className="header-right">
-          <div className="timer-container">
-            <div className="timer-icon">⏱️</div>
-            <div className="timer-content">
-              <div className={`time-display ${timeLeft <= 300 ? 'warning' : ''} ${timeLeft <= 60 ? 'danger' : ''}`}>
-                {formatTime(timeLeft)}
-              </div>
-              <div className="time-label">Time Remaining</div>
-            </div>
+          <div className="timer-box">
+            <span className="timer-icon">⏰</span>
+            <span className="timer-text">{formatTime(timeLeft)}</span>
           </div>
           
-          <div className="quiz-info">
-            <div className="info-item">
-              <span className="info-label">Passing %:</span>
-              <span className="info-value">{config.passingPercentage}%</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Total Q:</span>
-              <span className="info-value">{questions.length}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Source:</span>
-              <span className="info-value source-badge">MongoDB</span>
-            </div>
+          <div className="progress-box">
+            <span className="progress-icon">📊</span>
+            <span className="progress-text">{progress}% Complete</span>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Content */}
-      <div className="quiz-main-content">
-        {/* Question Navigation Sidebar */}
-        <div className="question-nav-sidebar">
-          <div className="sidebar-header">
-            <h3>Questions Navigation</h3>
-            <div className="progress-summary">
-              <span className="progress-text">
-                {getAnsweredCount()}/{questions.length} Answered
-              </span>
-              <div className="progress-bar">
-                <div 
-                  className="progress-fill"
-                  style={{ width: `${(getAnsweredCount() / questions.length) * 100}%` }}
-                ></div>
-              </div>
-            </div>
+      {/* Main Quiz Area */}
+      <main className="quiz-main">
+        {/* Question Navigation */}
+        <div className="question-nav">
+          <div className="nav-info">
+            <span>Question {currentQuestion + 1} of {questions.length}</span>
+            <span className="marks-info">Marks: {currentQ.marks || 1}</span>
           </div>
           
-          <div className="question-grid">
-            {questions.map((question, index) => {
-              const isCurrent = index === currentQuestionIndex;
-              const status = getQuestionStatus(question._id);
-              
-              return (
-                <button
-                  key={question._id}
-                  className={`question-num-btn ${isCurrent ? 'current' : ''} ${status}`}
-                  onClick={() => setCurrentQuestionIndex(index)}
-                >
-                  {index + 1}
-                </button>
-              );
-            })}
-          </div>
-          
-          <div className="sidebar-footer">
-            <button 
-              className="submit-sidebar-btn"
-              onClick={() => setShowConfirmModal(true)}
-              disabled={submitting}
-            >
-              🚀 Submit Quiz
-            </button>
+          <div className="question-buttons">
+            {questions.map((_, index) => (
+              <button
+                key={index}
+                className={`q-btn ${currentQuestion === index ? 'active' : ''} ${answers[index] ? 'answered' : ''}`}
+                onClick={() => setCurrentQuestion(index)}
+                title={`Question ${index + 1}`}
+              >
+                {index + 1}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Question Display Area */}
-        <div className="question-display-area">
+        {/* Current Question */}
+        <div className="question-card">
           <div className="question-header">
-            <div className="question-meta">
-              <span className="question-number">
-                Question {currentQuestionIndex + 1} of {questions.length}
-              </span>
-              <span className={`difficulty-badge ${currentQuestion.difficulty}`}>
-                {currentQuestion.difficulty.toUpperCase()}
-              </span>
-              <span className="marks-badge">
-                {currentQuestion.marks} Mark{currentQuestion.marks > 1 ? 's' : ''}
-              </span>
-            </div>
+            <h2>Question {currentQuestion + 1}</h2>
+            <span className="question-marks">{currentQ.marks || 1} mark{currentQ.marks !== 1 ? 's' : ''}</span>
           </div>
           
-          <div className="question-text-container">
-            <p className="question-text">{currentQuestion.questionText}</p>
+          <div className="question-text">
+            <p>{currentQ.questionText}</p>
           </div>
-          
+
+          {/* Options */}
           <div className="options-container">
-            {currentQuestion.options.map((option, index) => {
-              const isSelected = currentAnswer === option.text;
-              const optionLetter = String.fromCharCode(65 + index);
-              
-              return (
-                <div 
-                  key={index}
-                  className={`option-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() => handleAnswerSelect(currentQuestion._id, option.text)}
-                >
-                  <div className="option-letter-circle">
-                    {optionLetter}
+            {currentQ.options.map((option, index) => (
+              <div
+                key={index}
+                className={`option-item ${answers[currentQuestion] === option.text ? 'selected' : ''}`}
+                onClick={() => handleAnswerSelect(currentQuestion, option.text)}
+              >
+                <div className="option-selector">
+                  <div className={`option-circle ${answers[currentQuestion] === option.text ? 'checked' : ''}`}>
+                    {answers[currentQuestion] === option.text ? '✓' : ''}
                   </div>
-                  <div className="option-text-content">
-                    {option.text}
-                  </div>
-                  {isSelected && (
-                    <div className="selected-indicator">
-                      ✓
-                    </div>
-                  )}
                 </div>
-              );
-            })}
+                <div className="option-content">
+                  <span className="option-label">{String.fromCharCode(65 + index)}.</span>
+                  <span className="option-text">{option.text}</span>
+                </div>
+              </div>
+            ))}
           </div>
-          
+
+          {/* Navigation Buttons */}
           <div className="question-navigation">
             <button
+              onClick={handlePrev}
+              disabled={currentQuestion === 0}
               className="nav-btn prev-btn"
-              onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
-              disabled={currentQuestionIndex === 0}
             >
               ← Previous
             </button>
             
-            <div className="question-counter">
-              <span>
-                {currentQuestionIndex + 1} / {questions.length}
-              </span>
+            <div className="question-status">
+              <span className={`status-dot ${isAnswered ? 'answered' : 'unanswered'}`}></span>
+              <span>{isAnswered ? 'Answered' : 'Not Answered'}</span>
             </div>
             
-            {currentQuestionIndex < questions.length - 1 ? (
+            {currentQuestion === questions.length - 1 ? (
               <button
-                className="nav-btn next-btn"
-                onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="nav-btn submit-btn"
               >
-                Next →
+                {submitting ? 'Submitting...' : 'Submit Quiz'}
               </button>
             ) : (
               <button
-                className="nav-btn submit-final-btn"
-                onClick={() => setShowConfirmModal(true)}
-                disabled={submitting}
+                onClick={handleNext}
+                className="nav-btn next-btn"
               >
-                {submitting ? 'Submitting...' : 'Submit Assessment'}
+                Next →
               </button>
             )}
           </div>
         </div>
-      </div>
-      
-      {/* Footer Stats */}
-      <div className="quiz-footer">
-        <div className="footer-stats">
-          <div className="footer-stat">
-            <span className="stat-label">Answered:</span>
-            <span className="stat-value answered-value">{getAnsweredCount()}</span>
+
+        {/* Quiz Summary */}
+        <div className="quiz-summary">
+          <h3>Quiz Summary</h3>
+          <div className="summary-stats">
+            <div className="stat-item">
+              <span className="stat-value">{questions.length}</span>
+              <span className="stat-label">Total Questions</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-value">{Object.values(answers).filter(a => a !== null).length}</span>
+              <span className="stat-label">Answered</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-value">{Object.values(answers).filter(a => a === null).length}</span>
+              <span className="stat-label">Remaining</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-value">{progress}%</span>
+              <span className="stat-label">Progress</span>
+            </div>
           </div>
-          <div className="footer-stat">
-            <span className="stat-label">Unanswered:</span>
-            <span className="stat-value unanswered-value">{questions.length - getAnsweredCount()}</span>
-          </div>
-          <div className="footer-stat">
-            <span className="stat-label">Time Left:</span>
-            <span className="stat-value time-value">{formatTime(timeLeft)}</span>
+          
+          <div className="warning-box">
+            <span className="warning-icon">⚠️</span>
+            <p>
+              <strong>Important:</strong> Time will continue to count down. 
+              Submit before time runs out to save your answers.
+            </p>
           </div>
         </div>
-        
-        <button 
-          className="footer-submit-btn"
-          onClick={() => setShowConfirmModal(true)}
-          disabled={submitting}
+      </main>
+
+      {/* Footer */}
+      <footer className="quiz-footer">
+        <button
+          onClick={() => {
+            if (window.confirm('Are you sure you want to leave? Your progress will be lost.')) {
+              navigate('/register');
+            }
+          }}
+          className="footer-btn leave-btn"
         >
-          {submitting ? (
-            <>
-              <span className="spinner-small"></span>
-              Submitting...
-            </>
-          ) : (
-            'Submit Final Answers'
-          )}
+          Leave Quiz
         </button>
-      </div>
+        
+        <div className="footer-timer">
+          <span>Time Remaining: </span>
+          <span className={`time-remaining ${timeLeft < 300 ? 'warning' : ''}`}>
+            {formatTime(timeLeft)}
+          </span>
+        </div>
+        
+        <button
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="footer-btn submit-final-btn"
+        >
+          {submitting ? 'Submitting...' : 'Final Submit'}
+        </button>
+      </footer>
     </div>
   );
 };
