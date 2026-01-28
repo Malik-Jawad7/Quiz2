@@ -6,7 +6,7 @@ import Quiz from './pages/Quiz';
 import Result from './pages/Result';
 import AdminLogin from './pages/AdminLogin';
 import AdminPanel from './pages/AdminPanel';
-import Home from './pages/Home';
+// import Home from './pages/Home'; // Remove this import
 import './App.css';
 
 function App() {
@@ -15,7 +15,7 @@ function App() {
       <div className="App">
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Navigate to="/register" />} /> {/* Change this */}
           <Route path="/register" element={<Register />} />
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/result/:rollNumber" element={<Result />} />
@@ -27,7 +27,7 @@ function App() {
           <Route path="/admin" element={<Navigate to="/admin/login" />} />
           
           {/* 404 Redirect */}
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<Navigate to="/register" />} />
         </Routes>
       </div>
     </Router>
