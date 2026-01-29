@@ -1,114 +1,216 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { registerUser, getAvailableCategories, getConfig } from '../services/api';
+import { registerUser, getConfig, getCategories } from '../services/api';
 import './Register.css';
 
 const Register = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
-    rollNumber: 'SI-2024-',
+    rollNumber: '', // Empty initially
     category: ''
   });
   
-  // Categories with availability status
-  const [categories] = useState([
-    // Web Development - Core (Available)
+  const [categories, setCategories] = useState([
     { 
       value: 'html', 
       label: 'HTML', 
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/html5/html5-original.svg',
       description: 'HyperText Markup Language',
-      bgColor: '#FFFFFF',
-      available: true
+      available: true,
+      type: 'frontend'
     },
     { 
       value: 'css', 
       label: 'CSS', 
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/css3/css3-original.svg',
       description: 'Cascading Style Sheets',
-      bgColor: '#FFFFFF',
-      available: true
+      available: true,
+      type: 'frontend'
     },
     { 
       value: 'javascript', 
       label: 'JavaScript', 
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg',
       description: 'Programming Language',
-      bgColor: '#FFFFFF',
-      available: true
+      available: true,
+      type: 'frontend'
     },
-    
-    // Frontend Frameworks (React available, Next.js not available)
     { 
       value: 'react', 
       label: 'React.js', 
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg',
       description: 'JavaScript Library for UI',
-      bgColor: '#FFFFFF',
-      available: true
+      available: true,
+      type: 'frontend'
     },
     { 
       value: 'nextjs', 
       label: 'Next.js', 
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg',
       description: 'React Framework',
-      bgColor: '#FFFFFF',
-      available: false // Not available
+      available: true,
+      type: 'frontend'
     },
-    
-    // Backend Technologies (Node available, Express not available, Python available)
     { 
-      value: 'express', 
-      label: 'Express.js', 
-      logo: 'data:image/png;base64,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',
-      description: 'Web Framework for Node.js',
-      bgColor: '#FFFFFF',
-      available: false // Not available
+      value: 'vue', 
+      label: 'Vue.js', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vuejs/vuejs-original.svg',
+      description: 'JavaScript Framework',
+      available: true,
+      type: 'frontend'
+    },
+    { 
+      value: 'angular', 
+      label: 'Angular', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/angularjs/angularjs-original.svg',
+      description: 'TypeScript Framework',
+      available: true,
+      type: 'frontend'
+    },
+    { 
+      value: 'typescript', 
+      label: 'TypeScript', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg',
+      description: 'Typed JavaScript',
+      available: true,
+      type: 'frontend'
     },
     { 
       value: 'node', 
       label: 'Node.js', 
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg',
       description: 'JavaScript Runtime',
-      bgColor: '#FFFFFF',
-      available: true
+      available: true,
+      type: 'backend'
+    },
+    { 
+      value: 'express', 
+      label: 'Express.js', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/express/express-original.svg',
+      description: 'Node.js Framework',
+      available: true,
+      type: 'backend'
     },
     { 
       value: 'python', 
       label: 'Python', 
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg',
       description: 'Programming Language',
-      bgColor: '#FFFFFF',
-      available: true
+      available: true,
+      type: 'backend'
     },
-    
-    // Database (MongoDB available)
+    { 
+      value: 'django', 
+      label: 'Django', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/django/django-plain.svg',
+      description: 'Python Web Framework',
+      available: true,
+      type: 'backend'
+    },
+    { 
+      value: 'flask', 
+      label: 'Flask', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flask/flask-original.svg',
+      description: 'Python Microframework',
+      available: true,
+      type: 'backend'
+    },
+    { 
+      value: 'java', 
+      label: 'Java', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/java/java-original.svg',
+      description: 'Programming Language',
+      available: true,
+      type: 'backend'
+    },
+    { 
+      value: 'spring', 
+      label: 'Spring Boot', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg',
+      description: 'Java Framework',
+      available: true,
+      type: 'backend'
+    },
+    { 
+      value: 'php', 
+      label: 'PHP', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg',
+      description: 'Server-side Scripting',
+      available: true,
+      type: 'backend'
+    },
+    { 
+      value: 'laravel', 
+      label: 'Laravel', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/laravel/laravel-plain.svg',
+      description: 'PHP Framework',
+      available: true,
+      type: 'backend'
+    },
     { 
       value: 'mongodb', 
       label: 'MongoDB', 
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg',
       description: 'NoSQL Database',
-      bgColor: '#FFFFFF',
-      available: true
+      available: true,
+      type: 'database'
     },
-    
-    // Full Stack (MERN available, Full Stack not available)
+    { 
+      value: 'mysql', 
+      label: 'MySQL', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg',
+      description: 'Relational Database',
+      available: true,
+      type: 'database'
+    },
+    { 
+      value: 'postgresql', 
+      label: 'PostgreSQL', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg',
+      description: 'Advanced SQL Database',
+      available: true,
+      type: 'database'
+    },
     { 
       value: 'mern', 
       label: 'MERN Stack', 
       logo: 'https://miro.medium.com/v2/resize:fit:1400/1*DnCplmvHp4VfE6eKyxDm8A.png',
       description: 'MongoDB + Express + React + Node',
-      bgColor: '#FFFFFF',
-      available: true
+      available: true,
+      type: 'fullstack'
     },
     { 
-      value: 'fullstack', 
-      label: 'Full Stack', 
-      logo: 'https://cdn-icons-png.flaticon.com/512/2282/2282188.png',
-      description: 'Complete Web Development',
-      bgColor: '#FFFFFF',
-      available: false // Not available
+      value: 'graphql', 
+      label: 'GraphQL', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg',
+      description: 'Query Language for APIs',
+      available: true,
+      type: 'backend'
+    },
+    { 
+      value: 'git', 
+      label: 'Git', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg',
+      description: 'Version Control System',
+      available: true,
+      type: 'devops'
+    },
+    { 
+      value: 'docker', 
+      label: 'Docker', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg',
+      description: 'Container Platform',
+      available: true,
+      type: 'devops'
+    },
+    { 
+      value: 'aws', 
+      label: 'AWS', 
+      logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg',
+      description: 'Cloud Platform',
+      available: true,
+      type: 'devops'
     }
   ]);
   
@@ -120,19 +222,35 @@ const Register = () => {
   
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [apiCategories, setApiCategories] = useState([]);
+  const [selectedType, setSelectedType] = useState('all');
 
   useEffect(() => {
     loadConfig();
+    loadAPICategories();
   }, []);
 
   const loadConfig = async () => {
     try {
-      const configResponse = await getConfig();
-      if (configResponse.data?.success) {
-        setConfig(configResponse.data.config);
+      const response = await getConfig();
+      console.log('Config response:', response);
+      if (response.data?.success) {
+        setConfig(response.data.config);
       }
     } catch (error) {
       console.error('Error loading config:', error);
+    }
+  };
+
+  const loadAPICategories = async () => {
+    try {
+      const response = await getCategories();
+      console.log('Categories response:', response);
+      if (response.data?.success) {
+        setApiCategories(response.data.categories);
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
     }
   };
 
@@ -152,12 +270,44 @@ const Register = () => {
       return;
     }
 
+    // Validate roll number format
+    if (!formData.rollNumber.startsWith('SI-')) {
+      alert('Roll number must start with SI- (e.g., SI-2024-001)');
+      return;
+    }
+
+    // Check if roll number has proper format: SI-YYYY-NNN
+    const rollParts = formData.rollNumber.split('-');
+    if (rollParts.length < 3) {
+      alert('Please enter complete roll number: SI-YYYY-NNN (e.g., SI-2024-001)');
+      return;
+    }
+
+    const year = rollParts[1];
+    if (year.length !== 4 || isNaN(year)) {
+      alert('Please enter valid year in roll number (e.g., 2024)');
+      return;
+    }
+
+    const number = rollParts[2];
+    if (!number || isNaN(number)) {
+      alert('Please enter valid roll number (e.g., 001, 123)');
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log('Submitting registration:', formData);
       const response = await registerUser(formData);
+      console.log('Registration response:', response);
       
       if (response.data.success) {
+        // Save ALL necessary data to localStorage
         localStorage.setItem('quizConfig', JSON.stringify(config));
+        localStorage.setItem('userData', JSON.stringify(formData));
+        localStorage.setItem('quizCategory', formData.category);
+        localStorage.setItem('quizRollNumber', formData.rollNumber);
+        
         alert('✅ Registration successful! Redirecting to quiz...');
         navigate('/quiz');
       } else {
@@ -175,24 +325,39 @@ const Register = () => {
     console.log(`Failed to load logo for ${category.label}`);
     e.target.style.display = 'none';
     
-    // Create fallback with initial letter and colored background
     const fallbackDiv = document.createElement('div');
-    fallbackDiv.className = 'logo-fallback';
     
-    // Original colors for fallback
     const fallbackColors = {
       html: '#E34F26',
       css: '#1572B6',
       javascript: '#F7DF1E',
       react: '#61DAFB',
       nextjs: '#000000',
-      express: '#000000',
+      vue: '#4FC08D',
+      angular: '#DD0031',
+      typescript: '#3178C6',
       node: '#339933',
+      express: '#000000',
       python: '#3776AB',
+      django: '#092E20',
+      flask: '#000000',
+      java: '#007396',
+      spring: '#6DB33F',
+      php: '#777BB4',
+      laravel: '#FF2D20',
       mongodb: '#47A248',
+      mysql: '#4479A1',
+      postgresql: '#336791',
       mern: '#00C853',
-      fullstack: '#667eea'
+      graphql: '#E10098',
+      git: '#F05032',
+      docker: '#2496ED',
+      aws: '#FF9900'
     };
+    
+    const backgroundColor = fallbackColors[category.value] || '#667eea';
+    const textColor = category.value === 'javascript' || category.value === 'nextjs' || 
+                     category.value === 'express' || category.value === 'flask' ? '#000000' : 'white';
     
     fallbackDiv.style.cssText = `
       width: 40px;
@@ -200,16 +365,29 @@ const Register = () => {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: ${category.value === 'javascript' ? '#000000' : 'white'};
+      color: ${textColor};
       font-size: 20px;
       font-weight: bold;
       border-radius: 8px;
-      background: ${fallbackColors[category.value] || '#667eea'};
+      background: ${backgroundColor};
       border: 1px solid #e2e8f0;
     `;
     fallbackDiv.textContent = category.label.charAt(0);
     e.target.parentElement.appendChild(fallbackDiv);
   };
+
+  const filteredCategories = selectedType === 'all' 
+    ? categories 
+    : categories.filter(cat => cat.type === selectedType);
+
+  const categoryTypes = [
+    { value: 'all', label: 'All Technologies' },
+    { value: 'frontend', label: 'Frontend' },
+    { value: 'backend', label: 'Backend' },
+    { value: 'database', label: 'Database' },
+    { value: 'fullstack', label: 'Full Stack' },
+    { value: 'devops', label: 'DevOps' }
+  ];
 
   return (
     <div className="register-container">
@@ -220,7 +398,9 @@ const Register = () => {
             <h1>Shamsi Institute</h1>
             <p className="subtitle">Technical Skills Assessment</p>
           </div>
-          <p className="tagline">Select your technology stack and start the assessment</p>
+          <p className="tagline">
+            Select your technology stack and start the assessment
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="register-form">
@@ -243,29 +423,60 @@ const Register = () => {
               id="rollNumber"
               placeholder="SI-2024-001"
               value={formData.rollNumber}
-              onChange={(e) => setFormData({...formData, rollNumber: e.target.value})}
+              onChange={(e) => {
+                // Get the current value
+                let value = e.target.value;
+                
+                // Convert to uppercase
+                value = value.toUpperCase();
+                
+                // Only allow alphanumeric and dash
+                value = value.replace(/[^A-Z0-9-]/g, '');
+                
+                // Auto-add SI- prefix if user types numbers
+                if (!value.startsWith('SI-') && /^[0-9]/.test(value)) {
+                  value = 'SI-' + value;
+                }
+                
+                // If user clears everything, show empty
+                if (value === 'SI-') {
+                  value = '';
+                }
+                
+                // Update the state
+                setFormData({...formData, rollNumber: value});
+              }}
               required
             />
+            <div className="input-hint">
+            </div>
           </div>
 
           <div className="form-group">
             <label htmlFor="category">Select Technology Stack *</label>
+            
+            <div className="category-filter">
+              {categoryTypes.map(type => (
+                <button
+                  key={type.value}
+                  type="button"
+                  className={`type-btn ${selectedType === type.value ? 'active' : ''}`}
+                  onClick={() => setSelectedType(type.value)}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+            
             <div className="categories-grid">
-              {categories.map((category) => (
+              {filteredCategories.map((category) => (
                 <div 
                   key={category.value}
                   className={`category-card ${formData.category === category.value ? 'selected' : ''} ${!category.available ? 'not-available' : ''}`}
                   onClick={() => handleCategorySelect(category.value)}
                   title={category.description}
                 >
-                  <div 
-                    className="category-icon white-box"
-                    style={{ 
-                      backgroundColor: category.bgColor,
-                      border: '1px solid #e2e8f0',
-                      opacity: !category.available ? 0.6 : 1
-                    }}
-                  >
+                  <div className="category-icon white-box">
                     <img 
                       src={category.logo} 
                       alt={`${category.label} logo`}
@@ -280,11 +491,18 @@ const Register = () => {
                     </p>
                     <div className={`status ${!category.available ? 'not-available-status' : 'available-status'}`}>
                       {category.available ? (
-                        <span className="available">✅ Available</span>
+                        <span className="available">
+                          ✅ Available
+                        </span>
                       ) : (
-                        <span className="not-available">⛔ Not Available</span>
+                        <span className="not-available">
+                          ⛔ Not Available
+                        </span>
                       )}
                     </div>
+                    <span className="category-type-badge">
+                      {category.type}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -297,7 +515,6 @@ const Register = () => {
                     <img 
                       src={selectedCategory.logo} 
                       alt="Selected icon"
-                      className="selected-logo-img"
                       onError={(e) => {
                         e.target.style.display = 'none';
                         const fallbackColors = {
@@ -306,13 +523,33 @@ const Register = () => {
                           javascript: '#F7DF1E',
                           react: '#61DAFB',
                           nextjs: '#000000',
-                          express: '#000000',
+                          vue: '#4FC08D',
+                          angular: '#DD0031',
+                          typescript: '#3178C6',
                           node: '#339933',
+                          express: '#000000',
                           python: '#3776AB',
+                          django: '#092E20',
+                          flask: '#000000',
+                          java: '#007396',
+                          spring: '#6DB33F',
+                          php: '#777BB4',
+                          laravel: '#FF2D20',
                           mongodb: '#47A248',
+                          mysql: '#4479A1',
+                          postgresql: '#336791',
                           mern: '#00C853',
-                          fullstack: '#667eea'
+                          graphql: '#E10098',
+                          git: '#F05032',
+                          docker: '#2496ED',
+                          aws: '#FF9900'
                         };
+                        
+                        const backgroundColor = fallbackColors[selectedCategory.value] || '#667eea';
+                        const textColor = selectedCategory.value === 'javascript' || 
+                                         selectedCategory.value === 'nextjs' || 
+                                         selectedCategory.value === 'express' || 
+                                         selectedCategory.value === 'flask' ? '#000000' : 'white';
                         
                         const fallbackSpan = document.createElement('span');
                         fallbackSpan.style.cssText = `
@@ -321,8 +558,8 @@ const Register = () => {
                           justify-content: center;
                           width: 30px;
                           height: 30px;
-                          background-color: ${fallbackColors[selectedCategory.value] || '#667eea'};
-                          color: ${selectedCategory.value === 'javascript' ? '#000000' : 'white'};
+                          background-color: ${backgroundColor};
+                          color: ${textColor};
                           border-radius: 8px;
                           margin-right: 10px;
                           font-weight: bold;
@@ -372,7 +609,6 @@ const Register = () => {
                         <img 
                           src={selectedCategory.logo} 
                           alt="Tech logo"
-                          className="tech-logo-img"
                           onError={(e) => {
                             e.target.style.display = 'none';
                             const fallbackColors = {
@@ -381,13 +617,33 @@ const Register = () => {
                               javascript: '#F7DF1E',
                               react: '#61DAFB',
                               nextjs: '#000000',
-                              express: '#000000',
+                              vue: '#4FC08D',
+                              angular: '#DD0031',
+                              typescript: '#3178C6',
                               node: '#339933',
+                              express: '#000000',
                               python: '#3776AB',
+                              django: '#092E20',
+                              flask: '#000000',
+                              java: '#007396',
+                              spring: '#6DB33F',
+                              php: '#777BB4',
+                              laravel: '#FF2D20',
                               mongodb: '#47A248',
+                              mysql: '#4479A1',
+                              postgresql: '#336791',
                               mern: '#00C853',
-                              fullstack: '#667eea'
+                              graphql: '#E10098',
+                              git: '#F05032',
+                              docker: '#2496ED',
+                              aws: '#FF9900'
                             };
+                            
+                            const backgroundColor = fallbackColors[selectedCategory.value] || '#667eea';
+                            const textColor = selectedCategory.value === 'javascript' || 
+                                             selectedCategory.value === 'nextjs' || 
+                                             selectedCategory.value === 'express' || 
+                                             selectedCategory.value === 'flask' ? '#000000' : 'white';
                             
                             const fallbackSpan = document.createElement('span');
                             fallbackSpan.style.cssText = `
@@ -396,8 +652,8 @@ const Register = () => {
                               justify-content: center;
                               width: 20px;
                               height: 20px;
-                              background-color: ${fallbackColors[selectedCategory.value] || '#667eea'};
-                              color: ${selectedCategory.value === 'javascript' ? '#000000' : 'white'};
+                              background-color: ${backgroundColor};
+                              color: ${textColor};
                               border-radius: 50%;
                               margin-right: 5px;
                               font-weight: bold;

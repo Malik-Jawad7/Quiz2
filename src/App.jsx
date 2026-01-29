@@ -1,18 +1,16 @@
-﻿// src/App.jsx
-import React from 'react';
+﻿import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AdminLogin from './pages/AdminLogin';
 import AdminPanel from './pages/AdminPanel';
 import Register from './pages/Register';
-import Quiz from './pages/Quiz'; // ✅ Quiz component شامل کریں
-import Result from './pages/Result'; // ✅ Result component شامل کریں
+import Quiz from './pages/Quiz';
+import Result from './pages/Result';
 
 // ✅ Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const adminToken = localStorage.getItem('adminToken');
   
   if (!adminToken) {
-    // Redirect to admin login if not authenticated
     return <Navigate to="/admin/login" replace />;
   }
   
@@ -26,9 +24,9 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<Navigate to="/register" replace />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/quiz" element={<Quiz />} />
         <Route path="/result" element={<Result />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         
         {/* Protected Admin Routes */}
         <Route path="/admin/dashboard" element={

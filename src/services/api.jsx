@@ -1,83 +1,84 @@
-// src/services/api.jsx
 import axios from 'axios';
 
-// Production Backend URL
-const API_URL = 'https://backend-one-taupe-14.vercel.app/api';
+// Check current URL to determine environment
+const getBaseURL = () => {
+  const currentHost = window.location.hostname;
+  const currentPort = window.location.port;
+  
+  // Development environment
+  if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    if (currentPort === '5173') { // Vite default port
+      return 'http://localhost:5000/api';
+    }
+    return 'http://localhost:5000/api';
+  }
+  
+  // Production environment
+  return 'https://quiz2-iota-one.vercel.app/api'; // Or your actual production URL
+};
 
-// Create axios instance
+const API_URL = getBaseURL();
+
+console.log(`🌐 API URL: ${API_URL}`);
+console.log(`🌐 Current URL: ${window.location.href}`);
+
 const axiosInstance = axios.create({
   baseURL: API_URL,
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
 // Request interceptor
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('adminToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// ==================== QUIZ APIs ====================
-export const getQuizQuestions = async (category) => {
-  try {
-    const response = await axiosInstance.get(`/quiz/questions/${category}`);
-    return response;
-  } catch (error) {
-    console.error('Error fetching quiz questions:', error);
-    throw error;
-  }
-};
-
-export const submitQuiz = async (quizData) => {
-  try {
-    const response = await axiosInstance.post('/quiz/submit', quizData);
-    return response;
-  } catch (error) {
-    console.error('Error submitting quiz:', error);
-    throw error;
-  }
-};
-
-export const getResult = async (rollNumber) => {
-  try {
-    const response = await axiosInstance.get(`/result/${rollNumber}`);
-    return response;
-  } catch (error) {
-    console.error('Error fetching result:', error);
-    throw error;
-  }
-};
-
-export const registerUser = async (userData) => {
-  try {
-    const response = await axiosInstance.post('/auth/register', userData);
-    if (response.data.success) {
-      localStorage.setItem('userData', JSON.stringify(response.data.user));
-      localStorage.setItem('quizCategory', response.data.user.category);
-      localStorage.setItem('quizRollNumber', response.data.user.rollNumber);
+axiosInstance.interceptors.request.use(
+  (config) => {
+    console.log(`📤 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return response;
-  } catch (error) {
-    console.error('Registration error:', error);
-    throw error;
+    return config;
+  },
+  (error) => {
+    console.error('❌ Request error:', error);
+    return Promise.reject(error);
   }
-};
+);
+
+// Response interceptor
+axiosInstance.interceptors.response.use(
+  (response) => {
+    console.log(`✅ API Response: ${response.status} ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    console.error('❌ API Error:', {
+      url: error.config?.url,
+      baseURL: error.config?.baseURL,
+      fullURL: error.config?.baseURL + error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      message: error.message,
+      response: error.response?.data
+    });
+    
+    if (error.response?.status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      if (window.location.pathname.includes('/admin')) {
+        window.location.href = '/admin/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // ==================== ADMIN APIs ====================
 export const adminLogin = async (loginData) => {
   try {
     const response = await axiosInstance.post('/admin/login', loginData);
-    
-    if (response.data.success) {
-      localStorage.setItem('adminToken', 'admin-auth-token');
-      localStorage.setItem('adminUser', JSON.stringify(response.data.user));
-    }
-    
+    console.log('Login response:', response.data);
     return response;
   } catch (error) {
     console.error('Admin login error:', error);
@@ -85,32 +86,12 @@ export const adminLogin = async (loginData) => {
   }
 };
 
-export const getConfig = async () => {
+export const getDashboardStats = async () => {
   try {
-    const response = await axiosInstance.get('/config');
+    const response = await axiosInstance.get('/admin/dashboard');
     return response;
   } catch (error) {
-    console.error('Error fetching config:', error);
-    throw error;
-  }
-};
-
-export const updateConfig = async (configData) => {
-  try {
-    const response = await axiosInstance.put('/config', configData);
-    return response;
-  } catch (error) {
-    console.error('Error updating config:', error);
-    throw error;
-  }
-};
-
-export const getAvailableCategories = async () => {
-  try {
-    const response = await axiosInstance.get('/categories');
-    return response;
-  } catch (error) {
-    console.error('Error fetching categories:', error);
+    console.error('Error fetching dashboard stats:', error);
     throw error;
   }
 };
@@ -145,16 +126,6 @@ export const deleteQuestion = async (questionId) => {
   }
 };
 
-export const deleteAllQuestions = async () => {
-  try {
-    const response = await axiosInstance.delete('/admin/questions?confirm=true');
-    return response;
-  } catch (error) {
-    console.error('Error deleting all questions:', error);
-    throw error;
-  }
-};
-
 export const getResults = async () => {
   try {
     const response = await axiosInstance.get('/admin/results');
@@ -177,7 +148,9 @@ export const deleteResult = async (resultId) => {
 
 export const deleteAllResults = async () => {
   try {
-    const response = await axiosInstance.delete('/admin/results?confirm=true');
+    const response = await axiosInstance.delete('/admin/results', { 
+      params: { confirm: 'true' } 
+    });
     return response;
   } catch (error) {
     console.error('Error deleting all results:', error);
@@ -185,13 +158,80 @@ export const deleteAllResults = async () => {
   }
 };
 
-export const getDashboardStats = async () => {
+// ==================== CONFIG APIs ====================
+export const getConfig = async () => {
   try {
-    const response = await axiosInstance.get('/admin/dashboard');
+    const response = await axiosInstance.get('/config');
     return response;
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
+    console.error('Error fetching config:', error);
     throw error;
+  }
+};
+
+export const updateConfig = async (configData) => {
+  try {
+    const response = await axiosInstance.put('/config', configData);
+    return response;
+  } catch (error) {
+    console.error('Error updating config:', error);
+    throw error;
+  }
+};
+
+// ==================== QUIZ APIs ====================
+export const getCategories = async () => {
+  try {
+    const response = await axiosInstance.get('/categories');
+    return response;
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    throw error;
+  }
+};
+
+export const getQuizQuestions = async (category) => {
+  try {
+    const response = await axiosInstance.get(`/quiz/questions/${category}`);
+    return response;
+  } catch (error) {
+    console.error('Error fetching quiz questions:', error);
+    throw error;
+  }
+};
+
+export const submitQuiz = async (quizData) => {
+  try {
+    const response = await axiosInstance.post('/quiz/submit', quizData);
+    return response;
+  } catch (error) {
+    console.error('Error submitting quiz:', error);
+    throw error;
+  }
+};
+
+export const registerUser = async (userData) => {
+  try {
+    const response = await axiosInstance.post('/auth/register', userData);
+    return response;
+  } catch (error) {
+    console.error('Registration error:', error);
+    throw error;
+  }
+};
+
+// ==================== UTILITY FUNCTIONS ====================
+export const healthCheck = async () => {
+  try {
+    const response = await axiosInstance.get('/health');
+    console.log('Health check response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Health check failed:', error);
+    return { 
+      success: false, 
+      message: 'Backend server is not responding'
+    };
   }
 };
 
@@ -201,11 +241,6 @@ export const adminLogout = () => {
   window.location.href = '/admin/login';
 };
 
-export const exportQuestionsToCSV = () => {
-  return Promise.resolve({ data: { success: true, message: 'Feature coming soon' } });
-};
-
-// Get user data from localStorage
 export const getUserData = () => {
   try {
     const userData = localStorage.getItem('userData');
@@ -215,60 +250,50 @@ export const getUserData = () => {
   }
 };
 
-// Check if user is registered
 export const isUserRegistered = () => {
   return !!localStorage.getItem('userData');
 };
 
-// Clear user data
 export const clearUserData = () => {
   localStorage.removeItem('userData');
   localStorage.removeItem('quizCategory');
   localStorage.removeItem('quizRollNumber');
 };
 
-// Test API connection
-export const healthCheck = async () => {
-  try {
-    const response = await axiosInstance.get('/health');
-    return response.data;
-  } catch (error) {
-    console.error('Health check failed:', error);
-    return { 
-      success: false, 
-      message: 'Backend server is not responding',
-      apiUrl: API_URL
-    };
-  }
-};
+// For backward compatibility (temporary)
+export const getAvailableCategories = getCategories;
 
 // Default export
 const apiService = {
+  // Admin APIs
+  adminLogin,
+  getDashboardStats,
+  getAllQuestions,
+  addQuestion,
+  deleteQuestion,
+  getResults,
+  deleteResult,
+  deleteAllResults,
+  adminLogout,
+  
+  // Config APIs
+  getConfig,
+  updateConfig,
+  
   // Quiz APIs
+  getCategories,
   getQuizQuestions,
   submitQuiz,
-  getResult,
   registerUser,
   getUserData,
   isUserRegistered,
   clearUserData,
   
-  // Admin APIs
-  adminLogin,
-  getConfig,
-  updateConfig,
-  getAvailableCategories,
-  getAllQuestions,
-  addQuestion,
-  deleteQuestion,
-  deleteAllQuestions,
-  getResults,
-  deleteResult,
-  deleteAllResults,
-  getDashboardStats,
-  adminLogout,
-  exportQuestionsToCSV,
-  healthCheck
+  // Utility
+  healthCheck,
+  
+  // For backward compatibility
+  getAvailableCategories
 };
 
 export default apiService;
