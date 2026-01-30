@@ -13,19 +13,13 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [serverStatus, setServerStatus] = useState('checking');
-  const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
-    console.log('AdminLogin mounted');
-    console.log('Current path:', window.location.pathname);
-    console.log('LocalStorage token:', localStorage.getItem('adminToken'));
-    
     checkServerStatus();
-    const adminToken = localStorage.getItem('adminToken');
-    const adminUser = localStorage.getItem('adminUser');
     
-    if (adminToken && adminUser) {
-      console.log('Found existing auth, redirecting to dashboard');
+    // Check if already logged in
+    const adminToken = localStorage.getItem('adminToken');
+    if (adminToken) {
       setTimeout(() => {
         navigate('/admin/dashboard');
       }, 100);
@@ -50,7 +44,6 @@ const AdminLogin = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setDebugInfo(null);
 
     if (!formData.username.trim() || !formData.password.trim()) {
       setError('Please enter both username and password');
@@ -59,52 +52,25 @@ const AdminLogin = () => {
     }
 
     try {
-      console.log('Attempting login with:', formData);
       const response = await adminLogin(formData);
-      console.log('Full login response:', response);
       
-      // FIXED: Check response.data.success instead of response.success
       if (response.data && response.data.success) {
-        // Generate a proper token
-        const token = `admin-token-${Date.now()}`;
+        // Generate a secure token
+        const token = `admin-token-${Date.now()}-${Math.random().toString(36).substr(2)}`;
         localStorage.setItem('adminToken', token);
         localStorage.setItem('adminUser', JSON.stringify(response.data.user));
         
-        console.log('✅ Login successful! Token saved:', {
-          token: token,
-          user: response.data.user
-        });
-        
-        // Show success message
-        alert('✅ Login successful! Redirecting to dashboard...');
-        
-        // Add small delay to ensure state updates
+        // Navigate to dashboard
         setTimeout(() => {
           navigate('/admin/dashboard');
         }, 200);
         
       } else {
-        setError(response.data?.message || 'Login failed. Invalid credentials');
-        setDebugInfo({
-          message: 'Server returned false for success',
-          response: response.data
-        });
+        setError(response.data?.message || 'Invalid username or password');
       }
     } catch (error) {
-      console.error('Login error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
-      setDebugInfo({
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      
       if (error.response?.status === 401) {
-        setError('Invalid username or password. Try: admin / admin123');
+        setError('Invalid username or password');
       } else if (error.response?.status === 500) {
         setError('Server error. Please try again later.');
       } else if (error.message === 'Network Error') {
@@ -129,71 +95,9 @@ const AdminLogin = () => {
     navigate('/register');
   };
 
-  const handleQuickLogin = () => {
-    setFormData({ username: 'admin', password: 'admin123' });
-    setError('');
-  };
-
   const handleRetryServer = () => {
     setServerStatus('checking');
     checkServerStatus();
-  };
-
-  const handleResetAdmin = async () => {
-    if (window.confirm('Reset admin password to "admin123"? This will fix login issues.')) {
-      try {
-        const response = await fetch('http://localhost:5000/api/admin/reset', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            username: 'admin',
-            newPassword: 'admin123'
-          })
-        });
-        
-        const data = await response.json();
-        if (data.success) {
-          alert('✅ Admin password reset successfully! Try logging in again.');
-          setFormData({ username: 'admin', password: 'admin123' });
-          setError('');
-        } else {
-          alert('❌ Failed to reset admin password: ' + data.message);
-        }
-      } catch (error) {
-        alert('❌ Error resetting admin: ' + error.message);
-      }
-    }
-  };
-
-  const handleCheckAdmin = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/admin/users/debug');
-      const data = await response.json();
-      alert(JSON.stringify(data, null, 2));
-    } catch (error) {
-      alert('Error checking admin: ' + error.message);
-    }
-  };
-
-  // Temporary debug function
-  const handleTestNavigation = () => {
-    console.log('Testing navigation...');
-    console.log('Token:', localStorage.getItem('adminToken'));
-    console.log('User:', localStorage.getItem('adminUser'));
-    
-    // Manually set auth and navigate
-    localStorage.setItem('adminToken', 'test-token-' + Date.now());
-    localStorage.setItem('adminUser', JSON.stringify({
-      username: 'admin',
-      role: 'admin',
-      email: 'admin@shamsi.edu.pk'
-    }));
-    
-    setTimeout(() => {
-      navigate('/admin/dashboard');
-    }, 100);
   };
 
   return (
@@ -201,13 +105,13 @@ const AdminLogin = () => {
       <div className="admin-login-card">
         <div className="login-header">
           <div className="logo">
-            <span className="logo-icon"></span>
+            <span className="logo-icon">🎓</span>
           </div>
           <h1>Admin Login</h1>
-          <p>Enter credentials to access dashboard</p>
+          <p>Shamsi Institute of Technology</p>
           
           <div className={`server-status ${serverStatus}`}>
-            {serverStatus === 'checking' && 'Checking server...'}
+            {serverStatus === 'checking' && '🔍 Checking server...'}
             {serverStatus === 'online' && '✅ Server is online'}
             {serverStatus === 'offline' && '❌ Server is offline'}
             {serverStatus === 'offline' && (
@@ -216,15 +120,13 @@ const AdminLogin = () => {
               </button>
             )}
           </div>
-          
-          
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
             <label>Username</label>
             <div className="input-with-icon">
-              <span className="icon"></span>
+              <span className="icon">👤</span>
               <input
                 type="text"
                 name="username"
@@ -241,7 +143,7 @@ const AdminLogin = () => {
           <div className="form-group">
             <label>Password</label>
             <div className="input-with-icon">
-              <span className="icon"></span>
+              <span className="icon">🔒</span>
               <input
                 type="password"
                 name="password"
@@ -262,44 +164,20 @@ const AdminLogin = () => {
             </div>
           )}
 
-          <div className="login-buttons">
-            <button 
-              type="submit" 
-              className="login-btn"
-              disabled={loading || serverStatus === 'offline'}
-            >
-              {loading ? (
-                <>
-                  <span className="spinner"></span>
-                  Logging in...
-                </>
-              ) : (
-                <>
-                  <span>→</span>
-                  Login
-                </>
-              )}
-            </button>
-
-            <button 
-              type="button" 
-              className="quick-btn"
-              onClick={handleQuickLogin}
-              disabled={loading || serverStatus === 'offline'}
-            >
-              <span>⚡</span>
-              Quick Login
-            </button>
-          </div>
-
-          {debugInfo && (
-            <div className="debug-info">
-              <details>
-                <summary>Debug Information</summary>
-                <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
-              </details>
-            </div>
-          )}
+          <button 
+            type="submit" 
+            className="login-btn"
+            disabled={loading || serverStatus === 'offline'}
+          >
+            {loading ? (
+              <>
+                <span className="spinner"></span>
+                Logging in...
+              </>
+            ) : (
+              'Login'
+            )}
+          </button>
 
           <div className="login-footer">
             <button 
@@ -308,11 +186,8 @@ const AdminLogin = () => {
               onClick={handleBackToRegister}
               disabled={loading}
             >
-              <span>←</span>
-              Back to Registration
+              ← Back to Registration
             </button>
-            
-            
           </div>
         </form>
       </div>
@@ -320,4 +195,4 @@ const AdminLogin = () => {
   );
 };
 
-export default AdminLogin; 
+export default AdminLogin;
