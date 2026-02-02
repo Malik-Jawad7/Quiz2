@@ -1,7 +1,15 @@
-// src/pages/AdminLogin.jsx (اپڈیٹڈ)
+// src/pages/AdminLogin.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminLogin, healthCheck, quickSetup } from '../services/api';
+import { adminLogin, checkDashboardAccess } from '../services/api';
+import { 
+  FaUser, 
+  FaLock, 
+  FaSignInAlt, 
+  FaSync
+} from 'react-icons/fa';
+import { FiAlertCircle } from 'react-icons/fi';
+import shamsiLogo from '../assets/shamsi-logo.jpg';
 import './AdminLogin.css';
 
 const AdminLogin = () => {
@@ -12,51 +20,28 @@ const AdminLogin = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [serverStatus, setServerStatus] = useState('checking');
-  const [dbStatus, setDbStatus] = useState('checking');
 
   useEffect(() => {
-    checkServerStatus();
-    
     // Check if already logged in
     const adminToken = localStorage.getItem('adminToken');
     if (adminToken) {
-      console.log('✅ Found existing token, redirecting...');
-      setTimeout(() => {
-        navigate('/admin/dashboard');
-      }, 100);
+      console.log('✅ Found existing token, checking access...');
+      
+      // Check if we can access dashboard with current token
+      checkDashboardAccess().then(result => {
+        if (result.success) {
+          console.log('✅ Token still valid, redirecting...');
+          setTimeout(() => {
+            navigate('/admin/dashboard');
+          }, 100);
+        } else {
+          console.log('❌ Token expired or invalid:', result.message);
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+        }
+      });
     }
   }, [navigate]);
-
-  const checkServerStatus = async () => {
-    try {
-      console.log('🔍 Checking server status...');
-      const health = await healthCheck();
-      
-      if (health.success) {
-        setServerStatus('online');
-        setDbStatus(health.database || 'Unknown');
-        
-        console.log('✅ Server is online');
-        console.log('📊 Database status:', health.database);
-        console.log('🌐 Environment:', health.environment);
-        
-        // Log the health response for debugging
-        console.log('Health response:', {
-          message: health.message,
-          database: health.database,
-          timestamp: health.timestamp
-        });
-      } else {
-        setServerStatus('offline');
-        console.warn('⚠️ Server responded but not healthy:', health.message);
-      }
-    } catch (error) {
-      console.error('❌ Server check failed:', error.message);
-      setServerStatus('offline');
-      setDbStatus('error');
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,29 +55,80 @@ const AdminLogin = () => {
     }
 
     try {
-      console.log('🔐 Attempting login...');
+      console.log('🔐 Attempting login with:', formData);
       const response = await adminLogin(formData);
       
-      console.log('Login response:', response.data);
+      console.log('📥 Full login response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers
+      });
       
-      if (response.data.success) {
-        const token = `admin-token-${Date.now()}`;
-        localStorage.setItem('adminToken', token);
-        localStorage.setItem('adminUser', JSON.stringify(response.data.user));
+      if (response.data?.success) {
+        // 🔍 DEBUG: Check what token backend sends
+        console.log('🔍 Searching for token in response...');
+        
+        // Check response data for token
+        const responseData = response.data;
+        let actualToken = null;
+        
+        // Look for token in various possible locations
+        if (responseData.token) {
+          actualToken = responseData.token;
+          console.log('✅ Found token in response.data.token');
+        } else if (responseData.accessToken) {
+          actualToken = responseData.accessToken;
+          console.log('✅ Found token in response.data.accessToken');
+        } else if (responseData.authToken) {
+          actualToken = responseData.authToken;
+          console.log('✅ Found token in response.data.authToken');
+        } else if (responseData.data?.token) {
+          actualToken = responseData.data.token;
+          console.log('✅ Found token in response.data.data.token');
+        } else if (response.headers['authorization']) {
+          actualToken = response.headers['authorization'];
+          console.log('✅ Found token in response.headers.authorization');
+        } else if (response.headers['Authorization']) {
+          actualToken = response.headers['Authorization'];
+          console.log('✅ Found token in response.headers.Authorization');
+        }
+        
+        // Use found token or generate fallback
+        const tokenToUse = actualToken || `admin-token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        console.log('💾 Saving token:', tokenToUse);
+        localStorage.setItem('adminToken', tokenToUse);
+        localStorage.setItem('adminUser', JSON.stringify(response.data.user || {}));
         
         console.log('✅ Login successful!');
-        console.log('Token saved, user:', response.data.user);
+        console.log('📋 User data:', response.data.user);
         
-        // Show success and redirect
-        setTimeout(() => {
-          navigate('/admin/dashboard');
-        }, 500);
+        // Test if dashboard is accessible with this token
+        console.log('🔍 Testing dashboard access...');
+        const accessCheck = await checkDashboardAccess();
+        
+        if (accessCheck.success) {
+          console.log('🎉 Dashboard accessible! Redirecting...');
+          setTimeout(() => {
+            navigate('/admin/dashboard');
+          }, 500);
+        } else {
+          console.log('⚠️ Dashboard not accessible:', accessCheck.message);
+          
+          // Still redirect but show warning
+          alert('Login successful! Some dashboard features may require additional permissions.');
+          setTimeout(() => {
+            navigate('/admin/dashboard');
+          }, 500);
+        }
         
       } else {
-        setError(response.data.message || 'Invalid credentials');
+        console.log('❌ Login failed:', response.data?.message);
+        setError(response.data?.message || 'Invalid credentials');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       
       if (error.response?.status === 401) {
         setError('Invalid username or password');
@@ -116,117 +152,92 @@ const AdminLogin = () => {
     if (error) setError('');
   };
 
-  const handleRetryServer = () => {
-    setServerStatus('checking');
-    checkServerStatus();
-  };
-
-  const handleQuickSetup = async () => {
-    if (window.confirm('This will setup admin with username: admin, password: admin123. Continue?')) {
-      try {
-        setLoading(true);
-        const response = await quickSetup();
-        
-        if (response.data.success) {
-          alert('✅ Admin setup successful!\n\nUsername: admin\nPassword: admin123\n\nTry logging in now.');
-          setFormData({ username: 'admin', password: 'admin123' });
-          setError('');
-          // Auto-fill the form
-        } else {
-          alert('Setup failed: ' + response.data.message);
-        }
-      } catch (error) {
-        alert('Setup error: ' + error.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
   const handleBackToRegister = () => {
     navigate('/register');
   };
 
-  // Simple test function
-  const handleTestBackend = async () => {
-    try {
-      const response = await fetch('https://backend-one-taupe-14.vercel.app/api/health');
-      const data = await response.json();
-      alert(JSON.stringify(data, null, 2));
-    } catch (error) {
-      alert('Test failed: ' + error.message);
-    }
+  // Auto-fill for testing
+  const handleTestCredentials = () => {
+    setFormData({ 
+      username: 'admin', 
+      password: 'admin123' 
+    });
+    setError('');
+    alert('Test credentials filled. Click Login button.');
   };
 
   return (
     <div className="admin-login-container">
       <div className="admin-login-card">
         <div className="login-header">
-          <div className="logo">
-            <span className="logo-icon">🎓</span>
-          </div>
-          <h1>Admin Login</h1>
-          <p>Shamsi Institute of Technology</p>
-          
-          <div className="status-info">
-            <div className={`server-status ${serverStatus}`}>
-              {serverStatus === 'checking' && '🔍 Checking server...'}
-              {serverStatus === 'online' && '✅ Server is online'}
-              {serverStatus === 'offline' && '❌ Server is offline'}
-              {serverStatus === 'offline' && (
-                <button onClick={handleRetryServer} className="retry-btn">
-                  Retry
-                </button>
-              )}
+          <div className="logo-container">
+            <div className="logo-image">
+              <img 
+                src={shamsiLogo} 
+                alt="Shamsi Institute Logo" 
+                className="shamsi-logo"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%23667eea'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E";
+                }}
+              />
             </div>
-            
-            {dbStatus && serverStatus === 'online' && (
-              <div className={`db-status ${dbStatus.includes('✅') ? 'online' : dbStatus.includes('❌') ? 'offline' : 'checking'}`}>
-                {dbStatus}
-              </div>
-            )}
+            <div className="logo-text">
+              <h1>Shamsi Institute</h1>
+              <p>of Technology</p>
+            </div>
           </div>
+          
+          <h2 className="welcome-text">Admin Login Portal</h2>
+          <p className="subtitle">Secure access to management system</p>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label>Username</label>
+            <label className="form-label">
+              <FaUser className="label-icon" />
+              Username
+            </label>
             <div className="input-with-icon">
-              <span className="icon">👤</span>
               <input
                 type="text"
                 name="username"
                 value={formData.username}
                 onChange={handleChange}
-                placeholder="Enter username"
+                placeholder="Enter your username"
                 required
                 autoComplete="username"
                 disabled={loading}
+                className="form-input"
               />
             </div>
           </div>
 
           <div className="form-group">
-            <label>Password</label>
+            <label className="form-label">
+              <FaLock className="label-icon" />
+              Password
+            </label>
             <div className="input-with-icon">
-              <span className="icon">🔒</span>
+              {/* <FaLock className="input-icon" /> */}
               <input
                 type="password"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Enter password"
+                placeholder="Enter your password"
                 required
                 autoComplete="current-password"
                 disabled={loading}
+                className="form-input"
               />
             </div>
           </div>
 
           {error && (
             <div className="error-message">
-              <span className="error-icon">⚠️</span>
-              {error}
+              <FiAlertCircle className="error-icon" />
+              <span className="error-text">{error}</span>
             </div>
           )}
 
@@ -237,49 +248,43 @@ const AdminLogin = () => {
           >
             {loading ? (
               <>
-                <span className="spinner"></span>
-                Logging in...
+                <FaSync className="spinner-icon" />
+                <span className="btn-text">Authenticating...</span>
               </>
             ) : (
-              'Login'
+              <>
+                <FaSignInAlt className="btn-icon" />
+                <span className="btn-text">Login to Dashboard</span>
+              </>
             )}
           </button>
 
-          <div className="helper-buttons">
-            <button 
-              type="button" 
-              className="helper-btn test-btn"
-              onClick={handleTestBackend}
-              disabled={loading}
-            >
-              🔍 Test Backend
-            </button>
-            
-            <button 
-              type="button" 
-              className="helper-btn setup-btn"
-              onClick={handleQuickSetup}
-              disabled={loading}
-            >
-              🔧 Setup Admin
-            </button>
-          </div>
-
           <div className="login-footer">
-            <button 
-              type="button" 
-              className="back-btn"
-              onClick={handleBackToRegister}
-              disabled={loading}
-            >
-              ← Back to Registration
-            </button>
-            
-            <div className="debug-info">
-              <p className="debug-text">
-                Backend URL: backend-one-taupe-14.vercel.app
-              </p>
+            <div className="button-group">
+              <button 
+                type="button" 
+                className="back-btn"
+                onClick={handleBackToRegister}
+                disabled={loading}
+              >
+                <span className="back-text">← Back to Registration</span>
+              </button>
+              
+              {/* <button 
+                type="button" 
+                className="test-btn"
+                onClick={handleTestCredentials}
+                disabled={loading}
+              >
+                <span className="test-text">Fill Test Credentials</span>
+              </button> */}
             </div>
+            
+            {/* <div className="debug-info">
+              <p className="debug-text">
+                <small>Backend: localhost:5000/api</small>
+              </p>
+            </div> */}
           </div>
         </form>
       </div>

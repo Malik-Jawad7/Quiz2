@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { registerUser, getConfig, getCategories } from '../services/api';
+import ShamsiLogo from '../assets/shamsi-logo.jpg';
 import './Register.css';
 
 const Register = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
-    rollNumber: '', // Empty initially
+    rollNumber: '',
     category: ''
   });
   
@@ -233,7 +234,6 @@ const Register = () => {
   const loadConfig = async () => {
     try {
       const response = await getConfig();
-      console.log('Config response:', response);
       if (response.data?.success) {
         setConfig(response.data.config);
       }
@@ -245,7 +245,6 @@ const Register = () => {
   const loadAPICategories = async () => {
     try {
       const response = await getCategories();
-      console.log('Categories response:', response);
       if (response.data?.success) {
         setApiCategories(response.data.categories);
       }
@@ -270,43 +269,29 @@ const Register = () => {
       return;
     }
 
-    // Validate roll number format
-    if (!formData.rollNumber.startsWith('SI-')) {
-      alert('Roll number must start with SI- (e.g., SI-2024-001)');
-      return;
-    }
-
-    // Check if roll number has proper format: SI-YYYY-NNN
-    const rollParts = formData.rollNumber.split('-');
-    if (rollParts.length < 3) {
-      alert('Please enter complete roll number: SI-YYYY-NNN (e.g., SI-2024-001)');
-      return;
-    }
-
-    const year = rollParts[1];
-    if (year.length !== 4 || isNaN(year)) {
-      alert('Please enter valid year in roll number (e.g., 2024)');
-      return;
-    }
-
-    const number = rollParts[2];
-    if (!number || isNaN(number)) {
-      alert('Please enter valid roll number (e.g., 001, 123)');
+    // Simple validation - just check if it's a number
+    if (!/^\d+$/.test(formData.rollNumber)) {
+      alert('Please enter numbers only for roll number');
       return;
     }
 
     setLoading(true);
     try {
-      console.log('Submitting registration:', formData);
-      const response = await registerUser(formData);
-      console.log('Registration response:', response);
+      // Convert roll number to proper format for backend
+      const rollNumberToSend = `SI-${formData.rollNumber}`;
+      const registrationData = {
+        ...formData,
+        rollNumber: rollNumberToSend
+      };
+      
+      const response = await registerUser(registrationData);
       
       if (response.data.success) {
         // Save ALL necessary data to localStorage
         localStorage.setItem('quizConfig', JSON.stringify(config));
         localStorage.setItem('userData', JSON.stringify(formData));
         localStorage.setItem('quizCategory', formData.category);
-        localStorage.setItem('quizRollNumber', formData.rollNumber);
+        localStorage.setItem('quizRollNumber', rollNumberToSend);
         
         alert('✅ Registration successful! Redirecting to quiz...');
         navigate('/quiz');
@@ -323,57 +308,9 @@ const Register = () => {
 
   const handleLogoError = (e, category) => {
     console.log(`Failed to load logo for ${category.label}`);
-    e.target.style.display = 'none';
-    
-    const fallbackDiv = document.createElement('div');
-    
-    const fallbackColors = {
-      html: '#E34F26',
-      css: '#1572B6',
-      javascript: '#F7DF1E',
-      react: '#61DAFB',
-      nextjs: '#000000',
-      vue: '#4FC08D',
-      angular: '#DD0031',
-      typescript: '#3178C6',
-      node: '#339933',
-      express: '#000000',
-      python: '#3776AB',
-      django: '#092E20',
-      flask: '#000000',
-      java: '#007396',
-      spring: '#6DB33F',
-      php: '#777BB4',
-      laravel: '#FF2D20',
-      mongodb: '#47A248',
-      mysql: '#4479A1',
-      postgresql: '#336791',
-      mern: '#00C853',
-      graphql: '#E10098',
-      git: '#F05032',
-      docker: '#2496ED',
-      aws: '#FF9900'
-    };
-    
-    const backgroundColor = fallbackColors[category.value] || '#667eea';
-    const textColor = category.value === 'javascript' || category.value === 'nextjs' || 
-                     category.value === 'express' || category.value === 'flask' ? '#000000' : 'white';
-    
-    fallbackDiv.style.cssText = `
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: ${textColor};
-      font-size: 20px;
-      font-weight: bold;
-      border-radius: 8px;
-      background: ${backgroundColor};
-      border: 1px solid #e2e8f0;
-    `;
-    fallbackDiv.textContent = category.label.charAt(0);
-    e.target.parentElement.appendChild(fallbackDiv);
+    e.target.src = ShamsiLogo;
+    e.target.style.objectFit = 'contain';
+    e.target.style.padding = '8px';
   };
 
   const filteredCategories = selectedType === 'all' 
@@ -394,7 +331,9 @@ const Register = () => {
       <div className="register-card">
         <div className="header-section">
           <div className="logo">
-            <span className="logo-icon">🎓</span>
+            <div className="logo-icon-large">
+              <img src={ShamsiLogo} alt="Shamsi Institute" className="logo-img-large" />
+            </div>
             <h1>Shamsi Institute</h1>
             <p className="subtitle">Technical Skills Assessment</p>
           </div>
@@ -421,29 +360,11 @@ const Register = () => {
             <input
               type="text"
               id="rollNumber"
-              placeholder="SI-2024-001"
+              placeholder="Enter your roll number (numbers only)"
               value={formData.rollNumber}
               onChange={(e) => {
-                // Get the current value
-                let value = e.target.value;
-                
-                // Convert to uppercase
-                value = value.toUpperCase();
-                
-                // Only allow alphanumeric and dash
-                value = value.replace(/[^A-Z0-9-]/g, '');
-                
-                // Auto-add SI- prefix if user types numbers
-                if (!value.startsWith('SI-') && /^[0-9]/.test(value)) {
-                  value = 'SI-' + value;
-                }
-                
-                // If user clears everything, show empty
-                if (value === 'SI-') {
-                  value = '';
-                }
-                
-                // Update the state
+                // Allow only numbers
+                let value = e.target.value.replace(/\D/g, '');
                 setFormData({...formData, rollNumber: value});
               }}
               required
@@ -489,7 +410,7 @@ const Register = () => {
                     <p className="category-description">
                       {category.description}
                     </p>
-                    <div className={`status ${!category.available ? 'not-available-status' : 'available-status'}`}>
+                    <div className="status">
                       {category.available ? (
                         <span className="available">
                           ✅ Available
@@ -516,57 +437,9 @@ const Register = () => {
                       src={selectedCategory.logo} 
                       alt="Selected icon"
                       onError={(e) => {
-                        e.target.style.display = 'none';
-                        const fallbackColors = {
-                          html: '#E34F26',
-                          css: '#1572B6',
-                          javascript: '#F7DF1E',
-                          react: '#61DAFB',
-                          nextjs: '#000000',
-                          vue: '#4FC08D',
-                          angular: '#DD0031',
-                          typescript: '#3178C6',
-                          node: '#339933',
-                          express: '#000000',
-                          python: '#3776AB',
-                          django: '#092E20',
-                          flask: '#000000',
-                          java: '#007396',
-                          spring: '#6DB33F',
-                          php: '#777BB4',
-                          laravel: '#FF2D20',
-                          mongodb: '#47A248',
-                          mysql: '#4479A1',
-                          postgresql: '#336791',
-                          mern: '#00C853',
-                          graphql: '#E10098',
-                          git: '#F05032',
-                          docker: '#2496ED',
-                          aws: '#FF9900'
-                        };
-                        
-                        const backgroundColor = fallbackColors[selectedCategory.value] || '#667eea';
-                        const textColor = selectedCategory.value === 'javascript' || 
-                                         selectedCategory.value === 'nextjs' || 
-                                         selectedCategory.value === 'express' || 
-                                         selectedCategory.value === 'flask' ? '#000000' : 'white';
-                        
-                        const fallbackSpan = document.createElement('span');
-                        fallbackSpan.style.cssText = `
-                          display: inline-flex;
-                          align-items: center;
-                          justify-content: center;
-                          width: 30px;
-                          height: 30px;
-                          background-color: ${backgroundColor};
-                          color: ${textColor};
-                          border-radius: 8px;
-                          margin-right: 10px;
-                          font-weight: bold;
-                          font-size: 16px;
-                        `;
-                        fallbackSpan.textContent = selectedCategory.label?.charAt(0) || '?';
-                        e.target.parentElement.appendChild(fallbackSpan);
+                        e.target.src = ShamsiLogo;
+                        e.target.style.objectFit = 'contain';
+                        e.target.style.padding = '5px';
                       }}
                     />
                   </span>
@@ -610,57 +483,9 @@ const Register = () => {
                           src={selectedCategory.logo} 
                           alt="Tech logo"
                           onError={(e) => {
-                            e.target.style.display = 'none';
-                            const fallbackColors = {
-                              html: '#E34F26',
-                              css: '#1572B6',
-                              javascript: '#F7DF1E',
-                              react: '#61DAFB',
-                              nextjs: '#000000',
-                              vue: '#4FC08D',
-                              angular: '#DD0031',
-                              typescript: '#3178C6',
-                              node: '#339933',
-                              express: '#000000',
-                              python: '#3776AB',
-                              django: '#092E20',
-                              flask: '#000000',
-                              java: '#007396',
-                              spring: '#6DB33F',
-                              php: '#777BB4',
-                              laravel: '#FF2D20',
-                              mongodb: '#47A248',
-                              mysql: '#4479A1',
-                              postgresql: '#336791',
-                              mern: '#00C853',
-                              graphql: '#E10098',
-                              git: '#F05032',
-                              docker: '#2496ED',
-                              aws: '#FF9900'
-                            };
-                            
-                            const backgroundColor = fallbackColors[selectedCategory.value] || '#667eea';
-                            const textColor = selectedCategory.value === 'javascript' || 
-                                             selectedCategory.value === 'nextjs' || 
-                                             selectedCategory.value === 'express' || 
-                                             selectedCategory.value === 'flask' ? '#000000' : 'white';
-                            
-                            const fallbackSpan = document.createElement('span');
-                            fallbackSpan.style.cssText = `
-                              display: inline-flex;
-                              align-items: center;
-                              justify-content: center;
-                              width: 20px;
-                              height: 20px;
-                              background-color: ${backgroundColor};
-                              color: ${textColor};
-                              border-radius: 50%;
-                              margin-right: 5px;
-                              font-weight: bold;
-                              font-size: 12px;
-                            `;
-                            fallbackSpan.textContent = selectedCategory.label?.charAt(0) || '?';
-                            e.target.parentElement.appendChild(fallbackSpan);
+                            e.target.src = ShamsiLogo;
+                            e.target.style.objectFit = 'contain';
+                            e.target.style.padding = '3px';
                           }}
                         />
                       </span>

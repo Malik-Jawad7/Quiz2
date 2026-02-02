@@ -1,6 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getQuizQuestions, submitQuiz, getConfig } from '../services/api';
+import ShamsiLogo from '../assets/shamsi-logo.jpg';
+import { 
+  FaClock, 
+  FaChartBar, 
+  FaExclamationTriangle, 
+  FaSave, 
+  FaUser, 
+  FaIdCard, 
+  FaTag, 
+  FaArrowLeft, 
+  FaArrowRight, 
+  FaPaperPlane, 
+  FaHome, 
+  FaQuestionCircle,
+  FaCheckCircle,
+  FaCircle
+} from 'react-icons/fa';
 import './Quiz.css';
 
 const Quiz = () => {
@@ -17,7 +34,6 @@ const Quiz = () => {
   const [quizStarted, setQuizStarted] = useState(false);
   const [cheatDetected, setCheatDetected] = useState(false);
   const [cheatCount, setCheatCount] = useState(0);
-  const [selectedOptions, setSelectedOptions] = useState({}); // Track selected options for each question
   
   // Refs for persistence
   const timerRef = useRef(null);
@@ -44,11 +60,6 @@ const Quiz = () => {
           savedTimeRef.current = remainingTime;
           savedAnswersRef.current = quizData.answers || {};
           startTimeRef.current = quizData.startTime;
-          
-          // Load selected options
-          if (quizData.selectedOptions) {
-            setSelectedOptions(quizData.selectedOptions);
-          }
           
           console.log('Resuming quiz from saved state:', {
             remainingTime,
@@ -148,7 +159,6 @@ const Quiz = () => {
         startTime: startTimeRef.current,
         totalTime: timeInSeconds,
         answers: {},
-        selectedOptions: {},
         category,
         rollNumber
       };
@@ -197,7 +207,6 @@ const Quiz = () => {
           startTime: startTimeRef.current,
           totalTime: timeLeft + (timerRef.current ? 1 : 0),
           answers: answers,
-          selectedOptions: selectedOptions,
           category: userData?.category,
           rollNumber: userData?.rollNumber,
           cheatCount: cheatCount
@@ -215,7 +224,7 @@ const Quiz = () => {
     }
 
     return () => clearInterval(saveInterval);
-  }, [answers, timeLeft, userData, selectedOptions, cheatCount]);
+  }, [answers, timeLeft, userData, cheatCount]);
 
   // Tab change detection and cheat detection
   useEffect(() => {
@@ -389,7 +398,6 @@ const Quiz = () => {
         
         // Load saved answers if available
         const initialAnswers = savedAnswersRef.current || {};
-        const initialSelectedOptions = selectedOptions || {};
         questionsData.forEach((q, index) => {
           if (initialAnswers[index] === undefined) {
             initialAnswers[index] = null;
@@ -408,25 +416,12 @@ const Quiz = () => {
   };
 
   const handleAnswerSelect = (questionIndex, optionText) => {
-    // Check if this question already has a selected option
-    if (selectedOptions[questionIndex]) {
-      // Option already selected for this question, don't allow change
-      console.log(`Question ${questionIndex + 1} already has selected option:`, selectedOptions[questionIndex]);
-      return;
-    }
-
     const newAnswers = {
       ...answers,
       [questionIndex]: optionText
     };
     
-    const newSelectedOptions = {
-      ...selectedOptions,
-      [questionIndex]: optionText
-    };
-    
     setAnswers(newAnswers);
-    setSelectedOptions(newSelectedOptions);
     savedAnswersRef.current = newAnswers;
     lastActivityRef.current = Date.now();
   };
@@ -691,9 +686,6 @@ const Quiz = () => {
     };
   }, []);
 
-  // Get current question's selected option
-  const currentQuestionSelected = selectedOptions[currentQuestion];
-
   if (cheatDetected) {
     return (
       <div className="cheater-detected">
@@ -753,227 +745,209 @@ const Quiz = () => {
 
   return (
     <div className="quiz-container">
+      {/* Header - Logo in Left Corner, Institute Name in Center, User Info in Right Corner */}
       <header className="quiz-header">
-        <div className="header-left">
-          <h1>Shamsi Institute Quiz</h1>
-          {userData && (
-            <div className="user-info">
-              <span><strong>Name:</strong> {userData.name}</span>
-              <span><strong>Roll No:</strong> {userData.rollNumber}</span>
-              <span><strong>Category:</strong> {userData.category.toUpperCase()}</span>
-              {quizStarted && (
-                <span className="quiz-active-badge">🟢 Quiz Active</span>
-              )}
+        <div className="header-container">
+          {/* Left Section - Logo ONLY in LEFT CORNER */}
+          <div className="header-left">
+            <div className="logo-container">
+              {/* यहाँ लोगो छोटा सेट किया गया है - 100px x 100px */}
+              <img 
+                src={ShamsiLogo} 
+                alt="Shamsi Institute Logo" 
+                className="institute-logo" 
+              />
             </div>
-          )}
-        </div>
-        
-        <div className="header-right">
-          <div className="timer-box">
-            <span className="timer-icon">⏰</span>
-            <span className="timer-text">{formatTime(timeLeft)}</span>
-            {timeLeft < 300 && <span className="time-warning">⚠️ Hurry!</span>}
           </div>
           
-          <div className="progress-box">
-            <span className="progress-icon">📊</span>
-            <span className="progress-text">{progress}% Complete</span>
+          {/* Center Section - Institute Name */}
+          <div className="header-center">
+            <div className="institute-title">
+              Shamsi Institute - Technology Certification Assessment
+            </div>
           </div>
           
-          <div className="cheat-warning-box">
-            <span className="cheat-warning-icon">🚫</span>
-            <span className="cheat-warning-text">
-              Tab Changes: {tabChangeCountRef.current}/3
-            </span>
-          </div>
+          
         </div>
       </header>
 
-      <div className="quiz-warning-banner">
-        ⚠️ <strong>Important:</strong> Do not switch tabs or refresh. 
-        {tabChangeCountRef.current > 0 && 
-          ` You have changed tabs ${tabChangeCountRef.current} time(s). 3 changes will result in automatic failure.`}
-      </div>
-
+      {/* Main Quiz Area */}
       <main className="quiz-main">
-        <div className="question-nav">
-          <div className="nav-info">
-            <span>Question {currentQuestion + 1} of {questions.length}</span>
-            <span className="marks-info">Marks: {currentQ.marks || 1}</span>
-            {currentQuestionSelected && (
-              <span className="option-locked-badge">🔒 Option Locked</span>
-            )}
+        <div className="question-navigation">
+          <div className="nav-header">
+            <h3><FaQuestionCircle className="header-icon" /> Question Navigation</h3>
+            
           </div>
           
           <div className="question-buttons">
             {questions.map((_, index) => (
               <button
                 key={index}
-                className={`q-btn ${currentQuestion === index ? 'active' : ''} ${answers[index] ? 'answered' : ''} ${selectedOptions[index] ? 'locked' : ''}`}
+                className={`question-btn ${currentQuestion === index ? 'active' : ''} ${answers[index] ? 'answered' : 'unanswered'}`}
                 onClick={() => setCurrentQuestion(index)}
-                title={`Question ${index + 1}${selectedOptions[index] ? ' (Option Locked)' : ''}`}
+                title={`Question ${index + 1}${answers[index] ? ' (Answered)' : ' (Not Answered)'}`}
               >
                 {index + 1}
-                {selectedOptions[index] && <span className="lock-icon">🔒</span>}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="question-card">
+        <div className="question-container">
           <div className="question-header">
-            <h2>Question {currentQuestion + 1}</h2>
-            <div className="question-header-right">
-              <span className="question-marks">{currentQ.marks || 1} mark{currentQ.marks !== 1 ? 's' : ''}</span>
-              {currentQuestionSelected && (
-                <span className="selection-locked">Selection Locked 🔒</span>
-              )}
+            <div className="question-number">
+              <span className="number-label">Question</span>
+              <span className="number-value">{currentQuestion + 1}</span>
+            </div>
+            <div className="question-marks">
+              <span className="marks-label">Marks</span>
+              <span className="marks-value">{currentQ.marks || 1}</span>
             </div>
           </div>
           
-          <div className="question-text">
-            <p>{currentQ.questionText}</p>
+          <div className="question-content">
+            <p className="question-text">{currentQ.questionText}</p>
           </div>
 
           <div className="options-container">
             {currentQ.options.map((option, index) => {
               const isSelected = answers[currentQuestion] === option.text;
-              const isLocked = currentQuestionSelected && isSelected;
               
               return (
                 <div
                   key={index}
-                  className={`option-item ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}`}
-                  onClick={() => !currentQuestionSelected && handleAnswerSelect(currentQuestion, option.text)}
+                  className={`option-item ${isSelected ? 'selected' : ''}`}
+                  onClick={() => handleAnswerSelect(currentQuestion, option.text)}
                 >
-                  <div className="option-selector">
-                    <div className={`option-circle ${isSelected ? 'checked' : ''} ${isLocked ? 'locked' : ''}`}>
-                      {isSelected ? (isLocked ? '🔒' : '✓') : ''}
+                  <div className="option-marker">
+                    <div className="option-letter">{String.fromCharCode(65 + index)}</div>
+                    <div className="option-selector">
+                      {isSelected ? (
+                        <FaCheckCircle className="option-checked" />
+                      ) : (
+                        <FaCircle className="option-unchecked" />
+                      )}
                     </div>
                   </div>
-                  <div className="option-content">
-                    <span className="option-label">{String.fromCharCode(65 + index)}.</span>
+                  <div className="option-text-content">
                     <span className="option-text">{option.text}</span>
-                    {isLocked && <span className="option-locked-label">(Locked)</span>}
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="option-lock-notice">
-            {currentQuestionSelected ? (
-              <p className="lock-warning">⚠️ Your selection for this question is locked and cannot be changed.</p>
-            ) : (
-              <p>⚠️ Once you select an option, it will be locked and cannot be changed.</p>
-            )}
-          </div>
-
-          <div className="question-navigation">
+          <div className="question-footer">
             <button
               onClick={handlePrev}
               disabled={currentQuestion === 0}
-              className="nav-btn prev-btn"
+              className="nav-button prev-button"
             >
-              ← Previous
+              <FaArrowLeft className="button-icon" /> Previous
             </button>
             
             <div className="question-status">
-              <span className={`status-dot ${isAnswered ? 'answered' : 'unanswered'}`}></span>
-              <span>{isAnswered ? 'Answered' : 'Not Answered'}</span>
-              {isAnswered && selectedOptions[currentQuestion] && (
-                <span className="status-locked">(Locked)</span>
-              )}
+              <div className={`status-indicator ${isAnswered ? 'answered' : 'unanswered'}`}></div>
+              <span className="status-text">
+                {isAnswered ? 'Answered' : 'Not Answered'}
+              </span>
             </div>
             
             {currentQuestion === questions.length - 1 ? (
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="nav-btn submit-btn"
+                className="nav-button submit-button"
               >
-                {submitting ? 'Submitting...' : 'Submit Quiz'}
+                {submitting ? 'Submitting...' : 'Submit Quiz'} <FaPaperPlane className="button-icon" />
               </button>
             ) : (
               <button
                 onClick={handleNext}
-                className="nav-btn next-btn"
+                className="nav-button next-button"
               >
-                Next →
+                Next <FaArrowRight className="button-icon" />
               </button>
             )}
           </div>
         </div>
 
-        <div className="quiz-summary">
-          <h3>Quiz Summary</h3>
-          <div className="summary-stats">
-            <div className="stat-item">
-              <span className="stat-value">{questions.length}</span>
-              <span className="stat-label">Total Questions</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">{Object.values(answers).filter(a => a !== null).length}</span>
-              <span className="stat-label">Answered</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">{Object.values(selectedOptions).length}</span>
-              <span className="stat-label">Locked</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-value">{progress}%</span>
-              <span className="stat-label">Progress</span>
+        {/* Sidebar */}
+        <div className="quiz-sidebar">
+          <div className="sidebar-section">
+            <h3 className="sidebar-title"><FaChartBar className="sidebar-icon" /> Quiz Summary</h3>
+            <div className="summary-grid">
+              <div className="summary-item">
+                <div className="summary-value">{questions.length}</div>
+                <div className="summary-label">Total Questions</div>
+              </div>
+              <div className="summary-item">
+                <div className="summary-value">{Object.values(answers).filter(a => a !== null).length}</div>
+                <div className="summary-label">Answered</div>
+              </div>
+              <div className="summary-item">
+                <div className="summary-value">{questions.length - Object.values(answers).filter(a => a !== null).length}</div>
+                <div className="summary-label">Remaining</div>
+              </div>
+              <div className="summary-item">
+                <div className="summary-value">{progress}%</div>
+                <div className="summary-label">Progress</div>
+              </div>
             </div>
           </div>
           
-          <div className="warning-box">
-            <span className="warning-icon">⚠️</span>
-            <p>
-              <strong>Important Rules:</strong>
-              <br/>• Do not switch tabs (Allowed: {3 - tabChangeCountRef.current} more)
-              <br/>• Once selected, options cannot be changed
-              <br/>• Quiz auto-submits on tab change violations
-            </p>
-          </div>
-          
-          <div className="auto-save-notice">
-            <span className="save-icon">💾</span>
-            <span>Answers are auto-saved every 10 seconds</span>
+          <div className="sidebar-section">
+            <h3 className="sidebar-title"><FaExclamationTriangle className="sidebar-icon" /> Rules</h3>
+            <ul className="rules-list">
+              <li>Do not switch tabs (Allowed: {3 - tabChangeCountRef.current} more)</li>
+              <li>Do not refresh the page</li>
+              <li>Timer will continue even if you leave</li>
+              <li>Quiz auto-submits when time ends</li>
+            </ul>
           </div>
         </div>
       </main>
 
+      {/* Footer */}
       <footer className="quiz-footer">
-        <button
-          onClick={() => {
-            if (window.confirm('Are you sure you want to leave? Your quiz will be submitted.')) {
-              handleSubmit();
-            }
-          }}
-          className="footer-btn leave-btn"
-        >
-          Submit & Leave
-        </button>
-        
-        <div className="footer-timer">
-          <span>Time Remaining: </span>
-          <span className={`time-remaining ${timeLeft < 300 ? 'warning' : ''}`}>
-            {formatTime(timeLeft)}
-          </span>
-          {tabChangeCountRef.current > 0 && (
-            <span className="tab-change-warning">
-              ⚠️ Tab Changes: {tabChangeCountRef.current}
-            </span>
-          )}
+        <div className="footer-left">
+          <div className="footer-logo-section">
+            <div className="footer-logo-container">
+              <img src={ShamsiLogo} alt="Shamsi Institute Logo" className="footer-logo" />
+              <div className="footer-title">Shamsi Institute - Technology Certification Assessment</div>
+            </div>
+          </div>
         </div>
         
-        <button
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="footer-btn submit-final-btn"
-        >
-          {submitting ? 'Submitting...' : 'Final Submit'}
-        </button>
+        <div className="footer-center">
+          <div className="footer-timer">
+            {/* <FaClock className="timer-icon" /> */}
+            <span className="time-value">{formatTime(timeLeft)}</span>
+            <div className="timer-label">Time Remaining</div>
+          </div>
+        </div>
+        
+        <div className="footer-right">
+          <div className="footer-buttons-group">
+            <button
+              onClick={() => {
+                if (window.confirm('Are you sure you want to submit and leave?')) {
+                  handleSubmit();
+                }
+              }}
+              className="footer-button leave-button"
+            >
+              <FaHome className="button-icon" /> Submit & Leave
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="footer-button submit-final-button"
+            >
+              {submitting ? 'Submitting...' : 'Final Submit'} <FaPaperPlane className="button-icon" />
+            </button>
+          </div>
+        </div>
       </footer>
     </div>
   );

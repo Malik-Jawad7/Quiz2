@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getConfig } from '../services/api'; // API import کریں
+import { getConfig } from '../services/api';
+import ShamsiLogo from '../assets/shamsi-logo.jpg';
 import './Result.css';
 
 const Result = () => {
@@ -8,25 +9,114 @@ const Result = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
-  const [passingPercentage, setPassingPercentage] = useState(40); // Default value
+  const [passingPercentage, setPassingPercentage] = useState(40);
   const [configLoading, setConfigLoading] = useState(true);
+
+  // Category mapping function
+  const getCategoryFullName = (categoryCode) => {
+    if (!categoryCode) return 'GENERAL TECHNOLOGY';
+    
+    const categoryMap = {
+      'javascr': 'JAVASCRIPT PROGRAMMING',
+      'javascript': 'JAVASCRIPT PROGRAMMING',
+      'js': 'JAVASCRIPT PROGRAMMING',
+      'react': 'REACT JS DEVELOPMENT',
+      'node': 'NODE.JS BACKEND',
+      'html': 'HTML & CSS WEB DEVELOPMENT',
+      'css': 'HTML & CSS WEB DEVELOPMENT',
+      'java': 'JAVA PROGRAMMING',
+      'python': 'PYTHON PROGRAMMING',
+      'fullstack': 'FULL STACK DEVELOPMENT',
+      'frontend': 'FRONTEND DEVELOPMENT',
+      'backend': 'BACKEND DEVELOPMENT',
+      'general': 'GENERAL TECHNOLOGY',
+      'db': 'DATABASE MANAGEMENT',
+      'sql': 'SQL DATABASE',
+      'mongodb': 'MONGODB DATABASE',
+      'network': 'COMPUTER NETWORKING',
+      'security': 'CYBER SECURITY'
+    };
+    
+    const key = categoryCode.toString().toLowerCase().trim();
+    
+    // Check exact match first
+    if (categoryMap[key]) {
+      return categoryMap[key];
+    }
+    
+    // Check partial match
+    for (const [mapKey, mapValue] of Object.entries(categoryMap)) {
+      if (key.includes(mapKey) || mapKey.includes(key)) {
+        return mapValue;
+      }
+    }
+    
+    // If no match found, return uppercase version
+    return categoryCode.toUpperCase();
+  };
+
+  // Format date function
+  const formatDate = (dateString) => {
+    if (!dateString) {
+      return new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
+  };
+
+  // Format date with time
+  const formatDateTime = (dateString) => {
+    if (!dateString) {
+      return new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      return 'Invalid Date/Time';
+    }
+  };
 
   useEffect(() => {
     console.log('🎯 Result Page Loaded');
     
-    // Fetch admin configuration
     const fetchConfig = async () => {
       try {
         const response = await getConfig();
         if (response.data.success) {
           const configData = response.data.config;
-          console.log('⚙️ Loaded admin config:', configData);
           setPassingPercentage(configData.passingPercentage || 40);
-        } else {
-          console.log('Using default passing percentage');
         }
       } catch (error) {
-        console.error('Error fetching config, using default:', error);
+        console.error('Error fetching config:', error);
       } finally {
         setConfigLoading(false);
       }
@@ -34,45 +124,38 @@ const Result = () => {
 
     fetchConfig();
     
-    // Check for result in localStorage
     const storedResult = localStorage.getItem('quizResult');
     const storedLastResult = localStorage.getItem('lastQuizResult');
     const storedUserData = localStorage.getItem('userData');
     
-    console.log('🔍 Checking localStorage:', {
-      quizResult: !!storedResult,
-      lastQuizResult: !!storedLastResult,
-      userData: !!storedUserData
+    console.log('Debug - LocalStorage Data:', {
+      storedResult: !!storedResult,
+      storedLastResult: !!storedLastResult,
+      storedUserData: !!storedUserData,
+      category: localStorage.getItem('quizCategory')
     });
 
-    // First try to get quizResult
     if (storedResult) {
       try {
         const parsedResult = JSON.parse(storedResult);
-        console.log('✅ Loaded quizResult:', parsedResult);
+        console.log('Parsed Result:', parsedResult);
         setResult(parsedResult);
       } catch (error) {
         console.error('Error parsing quizResult:', error);
       }
-    } 
-    // If not found, try lastQuizResult
-    else if (storedLastResult) {
+    } else if (storedLastResult) {
       try {
         const parsedResult = JSON.parse(storedLastResult);
-        console.log('✅ Loaded lastQuizResult:', parsedResult);
+        console.log('Parsed Last Result:', parsedResult);
         setResult(parsedResult);
-        // Save it as quizResult for future
         localStorage.setItem('quizResult', storedLastResult);
       } catch (error) {
         console.error('Error parsing lastQuizResult:', error);
       }
-    }
-    // If still not found, create a mock result
-    else if (storedUserData) {
+    } else if (storedUserData) {
       try {
         const user = JSON.parse(storedUserData);
-        console.log('Creating mock result for user:', user);
-        
+        console.log('Creating mock result for:', user);
         const mockResult = {
           _id: 'mock_result_' + Date.now(),
           rollNumber: user.rollNumber,
@@ -86,11 +169,10 @@ const Result = () => {
           totalQuestions: 15,
           attempted: 15,
           submittedAt: new Date().toISOString(),
-          passingPercentage: passingPercentage, // Use fetched passing percentage
+          passingPercentage: 40,
           passed: true
         };
-        
-        console.log('📊 Mock result created:', mockResult);
+        console.log('Mock Result:', mockResult);
         setResult(mockResult);
         localStorage.setItem('quizResult', JSON.stringify(mockResult));
       } catch (error) {
@@ -98,10 +180,10 @@ const Result = () => {
       }
     }
 
-    // Load user data
     if (storedUserData) {
       try {
         const parsedUserData = JSON.parse(storedUserData);
+        console.log('User Data:', parsedUserData);
         setUserData(parsedUserData);
       } catch (error) {
         console.error('Error parsing user data:', error);
@@ -112,29 +194,18 @@ const Result = () => {
   }, []);
 
   const handleNewQuiz = () => {
-    console.log('🔄 Starting new quiz...');
-    // Clear only quiz-related data
     localStorage.removeItem('quizResult');
     localStorage.removeItem('lastQuizResult');
     localStorage.removeItem('quizCategory');
     localStorage.removeItem('quizRollNumber');
-    // Keep userData for convenience
     navigate('/register');
   };
 
-  // Calculate passed status based on admin's passing percentage
   const calculatePassStatus = () => {
     if (!result) return { passed: false, percentage: 0 };
     
     const percentage = parseFloat(result.percentage) || 0;
-    // Use admin's passing percentage from config
     const passed = percentage >= passingPercentage;
-    
-    console.log('📊 Status Calculation:', {
-      studentPercentage: percentage,
-      adminPassingPercentage: passingPercentage,
-      passed: passed
-    });
     
     return { passed, percentage };
   };
@@ -168,201 +239,284 @@ const Result = () => {
   const score = result.score || 0;
   const totalMarks = result.totalMarks || 0;
 
-  console.log('📊 Displaying result:', {
-    percentage,
-    passingPercentage,
-    passed,
-    score,
-    totalMarks,
-    resultPassingPercentage: result.passingPercentage // Log result's stored passing percentage
-  });
-
   return (
     <div className="result-container">
       <div className="result-card">
-        {/* Header */}
+        {/* Header with LARGE Logo */}
         <div className="result-header">
-          <div className="institute-logo">
-            <h1>Shamsi Institute</h1>
-            <p className="institute-tagline">Technology Certification Assessment</p>
-          </div>
-          <div className="certificate-badge">
-            <div className="badge-icon">🏆</div>
-            <div className="badge-text">
-              <span>Quiz Result</span>
-              <small>Submitted Successfully</small>
+          <div className="header-logo">
+            {/* BIGGER LOGO */}
+            <img 
+              src={ShamsiLogo} 
+              alt="Shamsi Institute" 
+              className="logo-img"
+            />
+            <div className="logo-text">
+              <h1 className="institute-name">
+                Shamsi Institute
+              </h1>
+              <p className="institute-tagline">
+                Technology Certification Assessment
+              </p>
             </div>
+          </div>
+          
+          <div className="result-certificate">
+            <h3>Assessment Result</h3>
+            <p className="certificate-id">ID: {result._id?.substring(0, 8) || 'LOCAL'}</p>
           </div>
         </div>
 
-        {/* Student Info */}
-        <div className="student-info-section">
-          <h2>Student Information</h2>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">Full Name:</span>
-              <span className="info-value">{result.userName || result.name || userData?.name || 'N/A'}</span>
+        {/* Student Information - ROW LAYOUT */}
+        <div className="student-section">
+          <h2 className="section-title">Student Information</h2>
+          
+          <div className="student-details-row">
+            {/* Name - Row Layout */}
+            <div className="detail-item-row">
+              <div className="detail-label-row">Full Name</div>
+              <div className="detail-value-row">
+                {result.userName || result.name || userData?.name || 'N/A'}
+              </div>
             </div>
-            <div className="info-item">
-              <span className="info-label">Roll Number:</span>
-              <span className="info-value">{result.rollNumber || userData?.rollNumber || 'N/A'}</span>
+            
+            {/* Roll Number - Row Layout */}
+            <div className="detail-item-row">
+              <div className="detail-label-row">Roll Number</div>
+              <div className="detail-value-row">
+                {result.rollNumber || userData?.rollNumber || 'N/A'}
+              </div>
             </div>
-            <div className="info-item">
-              <span className="info-label">Assessment Date:</span>
-              <span className="info-value">
-                {result.submittedAt 
-                  ? new Date(result.submittedAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
-                  : new Date().toLocaleDateString()
-                }
-              </span>
+            
+            {/* Category - Row Layout */}
+            <div className="detail-item-row">
+              <div className="detail-label-row">Category</div>
+              <div className="detail-value-row">
+                <span className="category-badge-row">
+                  {getCategoryFullName(result.category || userData?.category || localStorage.getItem('quizCategory'))}
+                </span>
+              </div>
             </div>
-            <div className="info-item">
-              <span className="info-label">Technology Category:</span>
-              <span className="info-value category-tag">
-                {result.category?.toUpperCase() || userData?.category?.toUpperCase() || 'GENERAL'}
-              </span>
+            
+            {/* Date & Time - Row Layout */}
+            <div className="detail-item-row">
+              <div className="detail-label-row">Date & Time</div>
+              <div className="detail-value-row">
+                <span className="date-time-row">
+                  {formatDateTime(result.submittedAt)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Result Status */}
-        <div className={`result-status ${passed ? 'passed' : 'failed'}`}>
+        <div className={`status-section ${passed ? 'passed' : 'failed'}`}>
           <div className="status-icon">
-            {passed ? (
-              <div className="icon-circle success">🎉</div>
-            ) : (
-              <div className="icon-circle warning">📝</div>
-            )}
+            {passed ? '🏆' : '📝'}
           </div>
           <div className="status-content">
-            <h3>{passed ? '🎯 Congratulations! You Passed!' : '📚 Keep Practicing!'}</h3>
-            <p>
+            <h3>{passed ? 'Congratulations! You Passed!' : 'Keep Practicing!'}</h3>
+            <p className="status-message">
               {passed 
-                ? `You have successfully passed the ${result.category?.toUpperCase() || ''} assessment with a score of ${percentage.toFixed(2)}% which meets the passing criteria of ${passingPercentage}%.`
-                : `You scored ${percentage.toFixed(2)}% in the ${result.category?.toUpperCase() || ''} assessment, which is below the required passing percentage of ${passingPercentage}%.`
+                ? `You scored ${percentage.toFixed(2)}% and passed the assessment.`
+                : `You scored ${percentage.toFixed(2)}%. Minimum required: ${passingPercentage}%.`
               }
             </p>
-            <div className="result-details">
-              <span><strong>Score:</strong> {score}/{totalMarks}</span>
-              <span><strong>Questions Attempted:</strong> {result.attempted || 0}/{result.totalQuestions || 0}</span>
-              <span><strong>Correct Answers:</strong> {result.correctAnswers || 0}</span>
+          </div>
+        </div>
+
+        {/* Score Summary */}
+        <div className="score-summary">
+          <h2 className="section-title">Performance Summary</h2>
+          
+          <div className="score-grid">
+            <div className="score-item">
+              <div className="score-label">Score</div>
+              <div className="score-number">{score}/{totalMarks}</div>
+              <div className="score-subtext">Marks Obtained</div>
+            </div>
+            
+            <div className="score-item">
+              <div className="score-label">Percentage</div>
+              <div className={`score-number ${passed ? 'passed-score' : 'failed-score'}`}>
+                {percentage.toFixed(1)}%
+              </div>
+              <div className="score-subtext">Overall Performance</div>
+            </div>
+            
+            <div className="score-item">
+              <div className="score-label">Correct Answers</div>
+              <div className="score-number">{result.correctAnswers || 0}/{result.totalQuestions || 0}</div>
+              <div className="score-subtext">Accuracy</div>
+            </div>
+            
+            <div className="score-item">
+              <div className="score-label">Result</div>
+              <div className={`score-number result-status ${passed ? 'passed-status' : 'failed-status'}`}>
+                {passed ? 'PASS' : 'FAIL'}
+              </div>
+              <div className="score-subtext">Final Status</div>
             </div>
           </div>
         </div>
 
-        {/* Performance Summary */}
-        <div className="performance-summary">
-          <h2>📊 Performance Summary</h2>
-          <div className="score-grid">
-            <div className="score-card total-score">
-              <div className="score-icon">📝</div>
-              <div className="score-content">
-                <div className="score-value">{score}/{totalMarks}</div>
-                <div className="score-label">Total Score</div>
-              </div>
-            </div>
-
-            <div className="score-card percentage-card">
-              <div className="score-icon">📈</div>
-              <div className="score-content">
-                <div className={`score-value ${passed ? 'text-success' : 'text-danger'}`}>
-                  {percentage.toFixed(2)}%
-                </div>
-                <div className="score-label">Percentage</div>
-              </div>
-            </div>
-
-            <div className="score-card attempted-card">
-              <div className="score-icon">✅</div>
-              <div className="score-content">
-                <div className="score-value">{result.attempted || 0}/{result.totalQuestions || 0}</div>
-                <div className="score-label">Attempted</div>
-              </div>
-            </div>
-
-            <div className="score-card status-card">
-              <div className="score-icon">{passed ? '🏆' : '📋'}</div>
-              <div className="score-content">
-                <div className={`score-value ${passed ? 'text-success' : 'text-danger'}`}>
-                  {passed ? 'PASSED' : 'FAILED'}
-                </div>
-                <div className="score-label">Result</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Percentage Bar */}
-          <div className="percentage-bar-container">
-            <div className="bar-labels">
-              <span>0%</span>
-              <span className="passing-label">Passing: {passingPercentage}%</span>
-              <span>100%</span>
-            </div>
-            <div className="percentage-bar">
-              <div 
-                className="percentage-fill"
-                style={{ 
-                  width: `${Math.min(Math.max(percentage, 0), 100)}%`, 
-                  backgroundColor: passed ? '#10b981' : '#ef4444' 
-                }}
-              >
-                <span className="percentage-text">{percentage.toFixed(1)}%</span>
-              </div>
-              <div 
-                className="passing-line"
-                style={{ left: `${Math.min(Math.max(passingPercentage, 0), 100)}%` }}
-              >
-                <div className="passing-marker"></div>
-              </div>
-            </div>
+        {/* Circular Performance Gauge */}
+        <div className="progress-section">
+          <div className="progress-header">
+            <span className="progress-label">Performance Analysis</span>
+            <span className="progress-percentage">{percentage.toFixed(1)}%</span>
           </div>
           
-          {/* Admin Config Info */}
-          <div className="admin-config-info">
-            <p className="config-note">
-              ⚙️ Passing criteria set by administration: <strong>{passingPercentage}%</strong>
-            </p>
+          <div className="circular-progress-container">
+            <div className="circular-progress-wrapper">
+              {/* Outer Circle */}
+              <div className="circular-progress-outer">
+                <div className="circular-progress-track"></div>
+                
+                {/* Progress Circle */}
+                <div 
+                  className={`circular-progress-fill ${passed ? 'passed-circle' : 'failed-circle'}`}
+                  style={{
+                    background: `conic-gradient(${passed ? '#10B981' : '#EF4444'} ${percentage * 3.6}deg, #f1f5f9 0)`
+                  }}
+                >
+                  <div className="circular-progress-inner">
+                    <div className="circular-progress-text">
+                      <span className="circular-progress-percentage">{percentage.toFixed(1)}%</span>
+                      <span className="circular-progress-label">Score</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Performance Indicators */}
+              <div className="circular-indicators">
+                <div className="indicator-item">
+                  <div className="indicator-dot current-dot"></div>
+                  <div className="indicator-label">Your Score</div>
+                  <div className="indicator-value">{percentage.toFixed(1)}%</div>
+                </div>
+                
+                <div className="indicator-item">
+                  <div className="indicator-dot passing-dot"></div>
+                  <div className="indicator-label">Passing Score</div>
+                  <div className="indicator-value">{passingPercentage}%</div>
+                </div>
+                
+                <div className="indicator-item">
+                  <div className="indicator-dot result-dot"></div>
+                  <div className="indicator-label">Result</div>
+                  <div className="indicator-value">
+                    <span className={passed ? 'passed-badge' : 'failed-badge'}>
+                      {passed ? 'PASS' : 'FAIL'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Performance Scale */}
+            <div className="performance-scale">
+              <div className="scale-item poor">
+                <div className="scale-label">Poor</div>
+                <div className="scale-range">0-39%</div>
+              </div>
+              
+              <div className="scale-item average">
+                <div className="scale-label">Average</div>
+                <div className="scale-range">40-69%</div>
+              </div>
+              
+              <div className="scale-item good">
+                <div className="scale-label">Good</div>
+                <div className="scale-range">70-89%</div>
+              </div>
+              
+              <div className="scale-item excellent">
+                <div className="scale-label">Excellent</div>
+                <div className="scale-range">90-100%</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="result-actions">
-          <button 
-            onClick={handleNewQuiz}
-            className="btn btn-primary"
-          >
-            🚀 Take New Quiz
+        {/* Detailed Stats */}
+        <div className="stats-section">
+          <h2 className="section-title">Detailed Statistics</h2>
+          
+          <div className="stats-grid">
+            <div className="stat-item">
+              <div className="stat-label">Questions Attempted</div>
+              <div className="stat-value">{result.attempted || 0}/{result.totalQuestions || 0}</div>
+            </div>
+            
+            <div className="stat-item">
+              <div className="stat-label">Status</div>
+              <div className="stat-value">Quiz Completed</div>
+            </div>
+            
+            <div className="stat-item">
+              <div className="stat-label">Passing Criteria</div>
+              <div className="stat-value">{passingPercentage}%</div>
+            </div>
+            
+            <div className="stat-item">
+              <div className="stat-label">Assessment Date</div>
+              <div className="stat-value">
+                {formatDate(result.submittedAt)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        <div className="action-section">
+          <button onClick={handleNewQuiz} className="action-btn primary-btn">
+            Take New Quiz
           </button>
-          {/* <button 
-            onClick={() => window.print()}
-            className="btn btn-secondary"
-          >
-            🖨️ Print Result
-          </button> */}
-          {/* <button 
-            onClick={() => navigate('/admin/login')}
-            className="btn btn-info"
-          >
-            🔐 Admin Panel
-          </button> */}
         </div>
 
         {/* Footer */}
-        <div className="result-footer">
-          <p className="footer-text">
-            📊 Quiz completed successfully | Result ID: {result._id?.substring(0, 12) || 'LOCAL_RESULT'} | 
-            Passing %: {passingPercentage}%
-          </p>
-          <p className="footer-subtext">
-            Note: This result is stored in your browser. For permanent record, please save or print.
-          </p>
-        </div>
+        <footer className="result-footer-blue">
+          <div className="footer-content-blue">
+            <div className="footer-logo-container">
+              <img 
+                src={ShamsiLogo} 
+                alt="Shamsi Institute" 
+                className="footer-logo"
+              />
+              <div className="footer-institute-info">
+                <h3 className="footer-institute-name">
+                  Shamsi Institute
+                </h3>
+                <p className="footer-institute-tagline">
+                  Technology Certification Assessment
+                </p>
+              </div>
+            </div>
+            
+            <div className="footer-center-info">
+              <p className="footer-text">
+                Assessment completed successfully | Passing criteria: {passingPercentage}%
+              </p>
+              <p className="footer-subtext">
+                Note: This result is stored locally. For official record, please save or print.
+              </p>
+            </div>
+            
+            <div className="footer-right-info">
+              <p className="footer-date">
+                Date: {formatDate(result.submittedAt)}
+              </p>
+              <p className="footer-status">
+                Status: <span className={passed ? 'passed-badge' : 'failed-badge'}>
+                  {passed ? 'PASSED' : 'FAILED'}
+                </span>
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );

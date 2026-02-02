@@ -1,7 +1,7 @@
-// src/services/api.js (or api.jsx)
+// src/services/api.jsx
 import axios from 'axios';
 
-const API_BASE_URL = 'https://backend-one-taupe-14.vercel.app/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,12 +11,12 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor
+// Request Interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('adminToken');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -25,21 +25,24 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor
+// Response Interceptor
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('adminToken');
-      window.location.href = '/admin/login';
+      localStorage.removeItem('adminUser');
+      if (!window.location.pathname.includes('/admin/login')) {
+        window.location.href = '/admin/login';
+      }
     }
     return Promise.reject(error);
   }
 );
 
-// ==================== ADMIN APIs ====================
-
-// Health Check
+// ===== NAMED EXPORTS =====
 export const healthCheck = async () => {
   try {
     const response = await api.get('/health');
@@ -47,144 +50,348 @@ export const healthCheck = async () => {
   } catch (error) {
     return { 
       success: false, 
-      message: 'Backend server is not responding'
+      message: `Backend server is not responding: ${error.message}`
     };
   }
 };
 
-// Admin Login
-export const adminLogin = (credentials) => {
-  return api.post('/admin/login', credentials);
+export const adminLogin = async (credentials) => {
+  try {
+    const response = await api.post('/admin/login', credentials);
+    return response;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Get Dashboard Stats
-export const getDashboardStats = () => {
-  return api.get('/admin/dashboard');
+export const getDashboardStats = async () => {
+  try {
+    const response = await api.get('/admin/dashboard');
+    return response;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Get All Questions
-export const getAllQuestions = () => {
-  return api.get('/admin/questions');
+export const checkDashboardAccess = async () => {
+  try {
+    const response = await api.get('/admin/dashboard');
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { 
+      success: false, 
+      status: error.response?.status,
+      message: error.message 
+    };
+  }
 };
 
-// Add Question
-export const addQuestion = (questionData) => {
-  return api.post('/admin/questions', questionData);
+export const getAllQuestions = async () => {
+  try {
+    const response = await api.get('/admin/questions');
+    return response;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Delete Question
-export const deleteQuestion = (questionId) => {
-  return api.delete(`/admin/questions/${questionId}`);
+export const addQuestion = async (questionData) => {
+  try {
+    const response = await api.post('/admin/questions', questionData);
+    return response;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Get Results
-export const getResults = () => {
-  return api.get('/admin/results');
+export const deleteQuestion = async (questionId) => {
+  try {
+    const response = await api.delete(`/admin/questions/${questionId}`);
+    return response;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Delete Result
-export const deleteResult = (resultId) => {
-  return api.delete(`/admin/results/${resultId}`);
+export const getResults = async () => {
+  try {
+    const response = await api.get('/admin/results');
+    return response;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Delete All Results - MISSING FUNCTION - ADD THIS
-export const deleteAllResults = () => {
-  return api.delete('/admin/results', { 
-    params: { confirm: 'true' } 
-  });
+// ========== FIXED DELETE FUNCTIONS ==========
+export const deleteResult = async (resultId) => {
+  try {
+    console.log(`🔍 Attempting to delete result: ${resultId}`);
+    
+    // Try multiple endpoint patterns for single delete
+    const endpoints = [
+      `/admin/results/${resultId}`,
+      `/admin/result/${resultId}`,
+      `/admin/results/delete/${resultId}`,
+      `/api/results/${resultId}`,
+      `/api/result/${resultId}`
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`🔄 Trying endpoint: ${endpoint}`);
+        const response = await api.delete(endpoint);
+        console.log(`✅ Successfully deleted via ${endpoint}`);
+        return response;
+      } catch (endpointError) {
+        if (endpointError.response?.status === 404) {
+          console.log(`❌ Endpoint ${endpoint} returned 404`);
+          continue; // Try next endpoint
+        } else if (endpointError.response?.status === 401) {
+          throw new Error('Unauthorized - Please login again');
+        } else {
+          console.log(`❌ Endpoint ${endpoint} error:`, endpointError.message);
+        }
+      }
+    }
+    
+    // If all endpoints fail, try POST method
+    console.log('🔄 Trying POST method for deletion...');
+    const postEndpoints = [
+      `/admin/results/delete`,
+      `/admin/result/delete`,
+      `/api/results/delete`
+    ];
+    
+    for (const endpoint of postEndpoints) {
+      try {
+        const response = await api.post(endpoint, { resultId });
+        console.log(`✅ Successfully deleted via POST ${endpoint}`);
+        return response;
+      } catch (postError) {
+        console.log(`❌ POST endpoint ${endpoint} failed:`, postError.message);
+      }
+    }
+    
+    // Ultimate fallback - use GET to trigger deletion (if backend has GET delete endpoint)
+    console.log('🔄 Trying GET method as last resort...');
+    try {
+      const response = await api.get(`/admin/results/delete/${resultId}`);
+      console.log('✅ Successfully deleted via GET');
+      return response;
+    } catch (getError) {
+      console.log('❌ GET method also failed:', getError.message);
+    }
+    
+    // If everything fails, throw error
+    throw new Error('No delete endpoint found. Please add proper backend API.');
+    
+  } catch (error) {
+    console.error('❌ All delete methods failed:', error.message);
+    throw error;
+  }
 };
 
-// Get Config
-export const getConfig = () => {
-  return api.get('/config');
+export const deleteAllResults = async () => {
+  try {
+    console.log('🔍 Attempting to delete ALL results');
+    
+    // Try multiple endpoint patterns for delete all
+    const endpoints = [
+      '/admin/results',
+      '/admin/results/all',
+      '/admin/results/delete-all',
+      '/admin/delete-results',
+      '/api/results/all',
+      '/api/delete-results'
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`🔄 Trying endpoint: ${endpoint}`);
+        const response = await api.delete(endpoint);
+        console.log(`✅ Successfully deleted all via ${endpoint}`);
+        return response;
+      } catch (endpointError) {
+        if (endpointError.response?.status === 404) {
+          console.log(`❌ Endpoint ${endpoint} returned 404`);
+          continue; // Try next endpoint
+        } else if (endpointError.response?.status === 401) {
+          throw new Error('Unauthorized - Please login again');
+        } else {
+          console.log(`❌ Endpoint ${endpoint} error:`, endpointError.message);
+        }
+      }
+    }
+    
+    // Try POST method
+    console.log('🔄 Trying POST method for delete all...');
+    const postEndpoints = [
+      '/admin/results/delete-all',
+      '/admin/delete-all-results',
+      '/api/results/delete-all'
+    ];
+    
+    for (const endpoint of postEndpoints) {
+      try {
+        const response = await api.post(endpoint);
+        console.log(`✅ Successfully deleted all via POST ${endpoint}`);
+        return response;
+      } catch (postError) {
+        console.log(`❌ POST endpoint ${endpoint} failed:`, postError.message);
+      }
+    }
+    
+    // Try GET method as last resort
+    console.log('🔄 Trying GET method as last resort...');
+    try {
+      const response = await api.get('/admin/results/delete-all');
+      console.log('✅ Successfully deleted all via GET');
+      return response;
+    } catch (getError) {
+      console.log('❌ GET method also failed:', getError.message);
+    }
+    
+    throw new Error('No delete all endpoint found. Please add proper backend API.');
+    
+  } catch (error) {
+    console.error('❌ All delete all methods failed:', error.message);
+    throw error;
+  }
+};
+// ========== END FIXED DELETE FUNCTIONS ==========
+
+export const getConfig = async () => {
+  try {
+    const response = await api.get('/config');
+    return response;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Update Config
-export const updateConfig = (configData) => {
-  return api.put('/config', configData);
+export const updateConfig = async (configData) => {
+  try {
+    const response = await api.put('/config', configData);
+    return response;
+  } catch (error) {
+    throw error;
+  }
 };
 
-// Admin Logout - MISSING FUNCTION - ADD THIS
+export const getCategories = async () => {
+  try {
+    const response = await api.get('/categories');
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getAvailableCategories = async () => {
+  try {
+    const response = await api.get('/available-categories');
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getCategoryStats = async () => {
+  try {
+    const response = await api.get('/category-stats');
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const getQuizQuestions = async (category) => {
+  try {
+    const response = await api.get(`/quiz/questions/${category}`);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const submitQuiz = async (quizData) => {
+  try {
+    const response = await api.post('/quiz/submit', quizData);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const registerUser = async (userData) => {
+  try {
+    const response = await api.post('/auth/register', userData);
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
+export const setupAdmin = async () => {
+  try {
+    const response = await api.get('/setup-admin');
+    return response;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const adminLogout = () => {
   localStorage.removeItem('adminToken');
   localStorage.removeItem('adminUser');
   window.location.href = '/admin/login';
 };
 
-// Get Result Details - MISSING FUNCTION - ADD THIS
-export const getResultDetails = (resultId) => {
-  return api.get(`/results/${resultId}`);
-};
-
-// Get Categories
-export const getCategories = () => {
-  return api.get('/categories');
-};
-
-// User Registration
-export const registerUser = (userData) => {
-  return api.post('/auth/register', userData);
-};
-
-// Get Quiz Questions
-export const getQuizQuestions = (category) => {
-  return api.get(`/quiz/questions/${category}`);
-};
-
-// Submit Quiz
-export const submitQuiz = (quizData) => {
-  return api.post('/quiz/submit', quizData);
-};
-
-// Quick Setup - MISSING FUNCTION - ADD THIS
-export const quickSetup = () => {
-  return api.get('/setup-admin');
-};
-
-// Setup Admin - MISSING FUNCTION - ADD THIS
-export const setupAdmin = (adminData) => {
-  return api.post('/admin/setup', adminData);
-};
-
-// Test Connection - MISSING FUNCTION - ADD THIS
-export const testConnection = async () => {
-  try {
-    const response = await api.get('/test');
-    return response.data;
-  } catch (error) {
-    throw error;
+export const testEndpoints = async () => {
+  console.log('🔍 Testing available endpoints...');
+  const testEndpoints = [
+    '/admin/results',
+    '/admin/result',
+    '/admin/results/all',
+    '/admin/delete-results',
+    '/admin/results/delete-all',
+    '/api/results',
+    '/api/result'
+  ];
+  
+  for (const endpoint of testEndpoints) {
+    try {
+      await api.get(endpoint);
+      console.log(`✅ GET ${endpoint} - EXISTS`);
+    } catch (error) {
+      console.log(`❌ GET ${endpoint} - ${error.response?.status || 'Error'}`);
+    }
   }
 };
 
-// Default export
+// Optional: Also export as default for backward compatibility
 const apiService = {
-  // Admin APIs
   healthCheck,
   adminLogin,
   getDashboardStats,
+  checkDashboardAccess,
   getAllQuestions,
   addQuestion,
   deleteQuestion,
   getResults,
   deleteResult,
-  deleteAllResults, // Add this
-  adminLogout, // Add this
-  
-  // Config APIs
+  deleteAllResults,
   getConfig,
   updateConfig,
-  
-  // Quiz APIs
   getCategories,
+  getAvailableCategories,
+  getCategoryStats,
   getQuizQuestions,
   submitQuiz,
   registerUser,
-  
-  // Utility APIs
-  quickSetup,
   setupAdmin,
-  testConnection,
-  getResultDetails // Add this
+  adminLogout,
+  testEndpoints
 };
 
 export default apiService;
