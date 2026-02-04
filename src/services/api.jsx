@@ -1,11 +1,12 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+// Production Backend URL
+const API_BASE_URL = 'https://backend-one-taupe-14.vercel.app/api';
 
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000, // 30 seconds timeout
   headers: {
     'Content-Type': 'application/json',
   },
@@ -21,6 +22,12 @@ api.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${cleanToken}`;
     }
     
+    console.log('🚀 API Request:', {
+      url: config.url,
+      method: config.method,
+      baseURL: config.baseURL
+    });
+    
     return config;
   },
   (error) => {
@@ -30,8 +37,21 @@ api.interceptors.request.use(
 
 // Response Interceptor
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ API Response:', {
+      url: response.config.url,
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
   (error) => {
+    console.error('❌ API Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.message
+    });
+    
     if (error.response?.status === 401) {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminUser');
@@ -47,38 +67,57 @@ api.interceptors.response.use(
   }
 );
 
+// Test server connection
+export const testServerConnection = async () => {
+  try {
+    console.log('🔗 Testing server connection to:', API_BASE_URL);
+    const response = await api.get('/health');
+    
+    return { 
+      success: true, 
+      data: response.data,
+      url: API_BASE_URL,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('❌ Server connection failed:', error);
+    
+    return { 
+      success: false, 
+      message: `API connection failed: ${error.message}`,
+      url: API_BASE_URL,
+      timestamp: new Date().toISOString()
+    };
+  }
+};
+
 // Admin login
 export const adminLogin = async (credentials) => {
   try {
+    console.log('🔐 Attempting admin login...');
     const response = await api.post('/admin/login', credentials);
+    
+    if (response.data.success) {
+      console.log('✅ Login successful');
+      // Save token
+      localStorage.setItem('adminToken', response.data.token);
+      localStorage.setItem('adminUser', JSON.stringify(response.data.user));
+    }
+    
     return response.data;
   } catch (error) {
+    console.error('❌ Login error:', error);
     throw error;
   }
 };
 
-// Test server connection
-export const testServerConnection = async () => {
-  try {
-    const response = await api.get('/health');
-    return { 
-      success: true, 
-      data: response.data
-    };
-  } catch (error) {
-    return { 
-      success: false, 
-      message: `API connection failed: ${error.message}`
-    };
-  }
-};
-
-// Dashboard stats
+// Get Dashboard Stats
 export const getDashboardStats = async () => {
   try {
     const response = await api.get('/admin/dashboard');
     return response.data;
   } catch (error) {
+    console.error('❌ Dashboard error:', error);
     throw error;
   }
 };
@@ -105,6 +144,7 @@ export const getAllQuestions = async () => {
     const response = await api.get('/admin/questions');
     return response.data;
   } catch (error) {
+    console.error('❌ Get questions error:', error);
     throw error;
   }
 };
@@ -115,6 +155,7 @@ export const addQuestion = async (questionData) => {
     const response = await api.post('/admin/questions', questionData);
     return response.data;
   } catch (error) {
+    console.error('❌ Add question error:', error);
     throw error;
   }
 };
@@ -125,6 +166,7 @@ export const deleteQuestion = async (questionId) => {
     const response = await api.delete(`/admin/questions/${questionId}`);
     return response.data;
   } catch (error) {
+    console.error('❌ Delete question error:', error);
     throw error;
   }
 };
@@ -135,6 +177,7 @@ export const getResults = async () => {
     const response = await api.get('/admin/results');
     return response.data;
   } catch (error) {
+    console.error('❌ Get results error:', error);
     throw error;
   }
 };
@@ -145,6 +188,7 @@ export const deleteResult = async (resultId) => {
     const response = await api.delete(`/admin/results/${resultId}`);
     return response.data;
   } catch (error) {
+    console.error('❌ Delete result error:', error);
     throw error;
   }
 };
@@ -155,6 +199,7 @@ export const deleteAllResults = async () => {
     const response = await api.delete('/admin/results');
     return response.data;
   } catch (error) {
+    console.error('❌ Delete all results error:', error);
     throw error;
   }
 };
@@ -165,6 +210,7 @@ export const getConfig = async () => {
     const response = await api.get('/config');
     return response.data;
   } catch (error) {
+    console.error('❌ Get config error:', error);
     throw error;
   }
 };
@@ -175,6 +221,7 @@ export const updateConfig = async (configData) => {
     const response = await api.put('/config', configData);
     return response.data;
   } catch (error) {
+    console.error('❌ Update config error:', error);
     throw error;
   }
 };
@@ -185,7 +232,7 @@ export const getCategories = async () => {
     const response = await api.get('/categories');
     return response.data;
   } catch (error) {
-    console.error('Get categories error:', error);
+    console.error('❌ Get categories error:', error);
     // Return default categories if API fails
     return {
       success: true,
@@ -193,7 +240,11 @@ export const getCategories = async () => {
         { value: 'html', label: 'HTML', description: 'HyperText Markup Language', questionCount: 10 },
         { value: 'css', label: 'CSS', description: 'Cascading Style Sheets', questionCount: 10 },
         { value: 'javascript', label: 'JavaScript', description: 'Programming Language', questionCount: 10 },
-        { value: 'react', label: 'React', description: 'JavaScript Library', questionCount: 10 }
+        { value: 'react', label: 'React', description: 'JavaScript Library', questionCount: 10 },
+        { value: 'node', label: 'Node.js', description: 'JavaScript Runtime', questionCount: 10 },
+        { value: 'java', label: 'Java', description: 'Programming Language', questionCount: 10 },
+        { value: 'python', label: 'Python', description: 'Programming Language', questionCount: 10 },
+        { value: 'general', label: 'General Technology', description: 'General IT Knowledge', questionCount: 10 }
       ]
     };
   }
@@ -205,6 +256,7 @@ export const getQuizQuestions = async (category) => {
     const response = await api.get(`/quiz/questions/${category}`);
     return response.data;
   } catch (error) {
+    console.error('❌ Get quiz questions error:', error);
     // Return empty questions if error
     return {
       success: true,
@@ -220,6 +272,7 @@ export const submitQuiz = async (quizData) => {
     const response = await api.post('/quiz/submit', quizData);
     return response.data;
   } catch (error) {
+    console.error('❌ Submit quiz error:', error);
     throw error;
   }
 };
@@ -237,11 +290,12 @@ export const initDatabase = async () => {
     const response = await api.get('/init-db');
     return response.data;
   } catch (error) {
+    console.error('❌ Init database error:', error);
     throw error;
   }
 };
 
-// User registration - اضافہ کریں یہ فنکشن
+// User registration
 export const registerUser = async (userData) => {
   try {
     console.log('👤 Registering user:', userData);
@@ -286,7 +340,7 @@ const apiService = {
   submitQuiz,
   adminLogout,
   initDatabase,
-  registerUser // یہاں اضافہ کریں
+  registerUser
 };
 
 export default apiService;
