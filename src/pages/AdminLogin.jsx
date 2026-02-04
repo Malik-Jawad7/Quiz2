@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminLogin, checkDashboardAccess } from '../services/api';
+import { adminLogin, testServerConnection } from '../services/api';
 import { 
   FaUser, 
   FaLock, 
@@ -9,9 +9,10 @@ import {
   FaEye,
   FaEyeSlash,
   FaUserPlus,
-  FaShieldAlt
+  FaShieldAlt,
+  FaExclamationTriangle,
+  FaCheckCircle
 } from 'react-icons/fa';
-import { FiAlertCircle } from 'react-icons/fi';
 import { MdAdminPanelSettings } from 'react-icons/md';
 import shamsiLogo from '../assets/shamsi-logo.jpg';
 import './AdminLogin.css';
@@ -26,22 +27,21 @@ const AdminLogin = () => {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formValid, setFormValid] = useState(false);
+  const [serverStatus, setServerStatus] = useState('checking');
 
   useEffect(() => {
-    const adminToken = localStorage.getItem('adminToken');
-    if (adminToken) {
-      checkDashboardAccess().then(result => {
-        if (result.success) {
-          setTimeout(() => {
-            navigate('/admin/dashboard');
-          }, 100);
-        } else {
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-        }
-      });
+    checkServerStatus();
+  }, []);
+
+  const checkServerStatus = async () => {
+    const result = await testServerConnection();
+    if (result.success) {
+      setServerStatus('connected');
+    } else {
+      setServerStatus('disconnected');
+      setError('Cannot connect to server. Please ensure backend is running on port 5000.');
     }
-  }, [navigate]);
+  };
 
   useEffect(() => {
     const isValid = formData.username.trim() !== '' && formData.password.trim() !== '';
@@ -59,62 +59,90 @@ const AdminLogin = () => {
       return;
     }
 
+    // If server is disconnected, show error
+    if (serverStatus === 'disconnected') {
+      setError('Cannot connect to server. Please start the backend server first.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const directResponse = await fetch('http://localhost:5000/api/admin/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
+      // Try direct fetch first
+      console.log('Attempting login...');
       
-      const directData = await directResponse.json();
-      
-      if (directData.success) {
-        if (directData.token) {
-          localStorage.setItem('adminToken', directData.token);
-          localStorage.setItem('adminUser', JSON.stringify(directData.user || {}));
+      // Try /admin/login endpoint
+      let response;
+      try {
+        response = await fetch('http://localhost:5000/admin/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
+        
+        if (!response.ok) {
+          // If /admin/login fails, try /api/admin/login
+          response = await fetch('http://localhost:5000/api/admin/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData),
+          });
+        }
+      } catch (fetchError) {
+        console.log('Fetch failed, trying apiService...');
+        // If fetch fails, use apiService
+        const loginData = await adminLogin(formData);
+        
+        if (loginData.success && loginData.token) {
+          localStorage.setItem('adminToken', loginData.token);
+          localStorage.setItem('adminUser', JSON.stringify(loginData.user || {}));
           
           setTimeout(() => {
             navigate('/admin/dashboard');
           }, 500);
           return;
-        }
-      } else {
-        setError(directData.message || 'Login failed');
-        setLoading(false);
-        return;
-      }
-    } catch (fetchError) {
-      try {
-        const loginData = await adminLogin(formData);
-        
-        if (loginData.success) {
-          if (loginData.token) {
-            localStorage.setItem('adminToken', loginData.token);
-            localStorage.setItem('adminUser', JSON.stringify(loginData.user || {}));
-            
-            setTimeout(() => {
-              navigate('/admin/dashboard');
-            }, 500);
-          } else {
-            setError('Login succeeded but no token received');
-            setLoading(false);
-          }
         } else {
           setError(loginData.message || 'Invalid credentials');
           setLoading(false);
+          return;
         }
-      } catch (error) {
-        if (error.message?.includes('Network Error') || error.message?.includes('timeout')) {
-          setError('Cannot connect to server. Please ensure backend is running.');
-        } else if (error.status === 401 || error.message?.includes('credentials')) {
-          setError('Invalid username or password');
-        } else {
-          setError(error.message || 'An error occurred. Please try again.');
-        }
+      }
+
+      // Handle fetch response
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setError(data.message || `Server error: ${response.status}`);
+        setLoading(false);
+        return;
+      }
+
+      if (data.success && data.token) {
+        localStorage.setItem('adminToken', data.token);
+        localStorage.setItem('adminUser', JSON.stringify(data.user || {}));
+        
+        setTimeout(() => {
+          navigate('/admin/dashboard');
+        }, 500);
+      } else {
+        setError(data.message || 'Invalid credentials');
         setLoading(false);
       }
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      if (error.message?.includes('Network Error') || error.message?.includes('timeout')) {
+        setError('Cannot connect to server. Please ensure backend is running on port 5000.');
+      } else if (error.message?.includes('credentials') || error.status === 401) {
+        setError('Invalid username or password');
+      } else {
+        setError(error.message || 'An error occurred. Please try again.');
+      }
+      setLoading(false);
     }
   };
 
@@ -134,8 +162,44 @@ const AdminLogin = () => {
     navigate('/register');
   };
 
+  const handleRetryConnection = async () => {
+    setLoading(true);
+    await checkServerStatus();
+    setLoading(false);
+  };
+
   return (
     <div className="admin-login-container">
+      {/* Server Status Banner */}
+      <div className={`server-status-banner ${serverStatus}`}>
+        <div className="status-content">
+          {serverStatus === 'connected' ? (
+            <>
+              <FaCheckCircle className="status-icon" />
+              <span>Server Connected</span>
+            </>
+          ) : serverStatus === 'disconnected' ? (
+            <>
+              <FaExclamationTriangle className="status-icon" />
+              <span>Server Disconnected</span>
+              <button 
+                className="retry-connection-btn"
+                onClick={handleRetryConnection}
+                disabled={loading}
+              >
+                <FaSync className={loading ? 'spinning' : ''} />
+                Retry
+              </button>
+            </>
+          ) : (
+            <>
+              <FaSync className="status-icon spinning" />
+              <span>Checking server connection...</span>
+            </>
+          )}
+        </div>
+      </div>
+      
       <div className="admin-login-card">
         {/* Header Section */}
         <div className="login-header">
@@ -168,6 +232,14 @@ const AdminLogin = () => {
             <h2>Administrator Login</h2>
           </div>
           
+          {/* Test Credentials Banner */}
+          <div className="test-credentials-banner">
+            <FaExclamationTriangle className="test-icon" />
+            <div className="test-info">
+              <strong>Test Credentials:</strong> username: <code>admin</code>, password: <code>admin123</code>
+            </div>
+          </div>
+          
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-section">
               <div className="input-group">
@@ -181,15 +253,16 @@ const AdminLogin = () => {
                     name="username"
                     value={formData.username}
                     onChange={handleChange}
-                    placeholder="Enter your admin username"
+                    placeholder="Enter admin username"
                     required
                     autoComplete="username"
-                    disabled={loading}
+                    disabled={loading || serverStatus === 'disconnected'}
                     className="credential-input"
                     autoFocus
                   />
                   <div className="input-underline"></div>
                 </div>
+                <div className="input-hint">Enter "admin" for testing</div>
               </div>
 
               <div className="input-group">
@@ -203,10 +276,10 @@ const AdminLogin = () => {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    placeholder="Enter your password"
+                    placeholder="Enter password"
                     required
                     autoComplete="current-password"
-                    disabled={loading}
+                    disabled={loading || serverStatus === 'disconnected'}
                     className="credential-input"
                   />
                   <div className="input-underline"></div>
@@ -214,19 +287,20 @@ const AdminLogin = () => {
                     type="button"
                     className="password-toggle"
                     onClick={togglePasswordVisibility}
-                    disabled={loading}
+                    disabled={loading || serverStatus === 'disconnected'}
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
+                <div className="input-hint">Enter "admin123" for testing</div>
               </div>
 
               {/* Error Display */}
               {error && (
                 <div className="error-display">
                   <div className="error-content">
-                    <FiAlertCircle className="error-icon" />
+                    <FaExclamationTriangle className="error-icon" />
                     <span className="error-message">{error}</span>
                   </div>
                 </div>
@@ -236,7 +310,7 @@ const AdminLogin = () => {
               <button 
                 type="submit" 
                 className="login-submit-btn"
-                disabled={loading || !formValid}
+                disabled={loading || !formValid || serverStatus === 'disconnected'}
               >
                 {loading ? (
                   <>

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Backend URL
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5000';
 
 // Create axios instance
 const api = axios.create({
@@ -49,7 +49,7 @@ api.interceptors.response.use(
 // Test server connection
 export const testServerConnection = async () => {
   try {
-    const response = await api.get('/health');
+    const response = await api.get('/api/health');
     return { 
       success: true, 
       data: response.data,
@@ -65,23 +65,48 @@ export const testServerConnection = async () => {
   }
 };
 
-// Admin login
+// Admin login - UPDATED TO USE /admin/login
 export const adminLogin = async (credentials) => {
   try {
+    console.log('Attempting admin login at /admin/login');
+    
+    // First try the /admin/login endpoint
     const response = await api.post('/admin/login', credentials);
     
     if (response.data.success && response.data.token) {
       localStorage.setItem('adminToken', response.data.token);
       localStorage.setItem('adminUser', JSON.stringify(response.data.user || {}));
+      
+      console.log('Login successful via /admin/login');
+      return response.data;
     }
     
-    return response.data;
+    // If that fails, try the API endpoint
+    console.log('Trying /api/admin/login as fallback');
+    const apiResponse = await api.post('/api/admin/login', credentials);
+    
+    if (apiResponse.data.success && apiResponse.data.token) {
+      localStorage.setItem('adminToken', apiResponse.data.token);
+      localStorage.setItem('adminUser', JSON.stringify(apiResponse.data.user || {}));
+      
+      console.log('Login successful via /api/admin/login');
+      return apiResponse.data;
+    }
+    
+    // If neither returns success
+    throw new Error('Login failed: Invalid response from server');
+    
   } catch (error) {
     console.error('Login error:', error);
     
     // Show specific error message
     if (error.response?.data?.message) {
       throw new Error(error.response.data.message);
+    }
+    
+    // If it's a network error, provide a helpful message
+    if (error.message?.includes('Network Error')) {
+      throw new Error('Cannot connect to server. Please make sure backend is running on port 5000.');
     }
     
     throw error;
@@ -101,7 +126,7 @@ export const checkDashboardAccess = async () => {
     }
     
     // Try to get dashboard stats to verify token
-    const response = await api.get('/admin/dashboard');
+    const response = await api.get('/api/admin/dashboard');
     return { 
       success: response.data.success, 
       data: response.data
@@ -118,7 +143,7 @@ export const checkDashboardAccess = async () => {
 // Get dashboard stats
 export const getDashboardStats = async () => {
   try {
-    const response = await api.get('/admin/dashboard');
+    const response = await api.get('/api/admin/dashboard');
     return response.data;
   } catch (error) {
     console.error('Dashboard error:', error);
@@ -129,7 +154,7 @@ export const getDashboardStats = async () => {
 // Get all questions
 export const getAllQuestions = async (category = 'all') => {
   try {
-    const response = await api.get(`/admin/questions?category=${category}`);
+    const response = await api.get(`/api/admin/questions?category=${category}`);
     return response.data;
   } catch (error) {
     console.error('Get questions error:', error);
@@ -142,7 +167,7 @@ export const addQuestion = async (questionData) => {
   try {
     console.log('Sending question to server:', questionData);
     
-    const response = await api.post('/admin/questions', questionData);
+    const response = await api.post('/api/admin/questions', questionData);
     return response.data;
   } catch (error) {
     console.error('Add question error:', error);
@@ -163,7 +188,7 @@ export const addQuestion = async (questionData) => {
 // Delete question
 export const deleteQuestion = async (questionId) => {
   try {
-    const response = await api.delete(`/admin/questions/${questionId}`);
+    const response = await api.delete(`/api/admin/questions/${questionId}`);
     return response.data;
   } catch (error) {
     console.error('Delete question error:', error);
@@ -174,7 +199,7 @@ export const deleteQuestion = async (questionId) => {
 // Get results
 export const getResults = async () => {
   try {
-    const response = await api.get('/admin/results');
+    const response = await api.get('/api/admin/results');
     return response.data;
   } catch (error) {
     console.error('Get results error:', error);
@@ -185,7 +210,7 @@ export const getResults = async () => {
 // Delete result
 export const deleteResult = async (resultId) => {
   try {
-    const response = await api.delete(`/admin/results/${resultId}`);
+    const response = await api.delete(`/api/admin/results/${resultId}`);
     return response.data;
   } catch (error) {
     console.error('Delete result error:', error);
@@ -196,7 +221,7 @@ export const deleteResult = async (resultId) => {
 // Delete all results
 export const deleteAllResults = async () => {
   try {
-    const response = await api.delete('/admin/results');
+    const response = await api.delete('/api/admin/results');
     return response.data;
   } catch (error) {
     console.error('Delete all results error:', error);
@@ -207,7 +232,7 @@ export const deleteAllResults = async () => {
 // Get config
 export const getConfig = async () => {
   try {
-    const response = await api.get('/config');
+    const response = await api.get('/api/config');
     return response.data;
   } catch (error) {
     console.error('Get config error:', error);
@@ -227,7 +252,7 @@ export const getConfig = async () => {
 // Update config
 export const updateConfig = async (configData) => {
   try {
-    const response = await api.put('/config', configData);
+    const response = await api.put('/api/config', configData);
     return response.data;
   } catch (error) {
     console.error('Update config error:', error);
@@ -238,7 +263,7 @@ export const updateConfig = async (configData) => {
 // Get categories
 export const getCategories = async () => {
   try {
-    const response = await api.get('/categories');
+    const response = await api.get('/api/categories');
     return response.data;
   } catch (error) {
     console.error('Get categories error:', error);
@@ -256,7 +281,7 @@ export const getQuizQuestions = async (category) => {
   try {
     console.log('Fetching questions for category:', category);
     
-    const response = await api.get(`/quiz/questions/${category}`);
+    const response = await api.get(`/api/quiz/questions/${category}`);
     
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to get questions');
@@ -283,7 +308,7 @@ export const getQuizQuestions = async (category) => {
 // Submit quiz
 export const submitQuiz = async (quizData) => {
   try {
-    const response = await api.post('/quiz/submit', quizData);
+    const response = await api.post('/api/quiz/submit', quizData);
     return response.data;
   } catch (error) {
     console.error('Submit quiz error:', error);
@@ -296,7 +321,7 @@ export const registerUser = async (userData) => {
   try {
     console.log('Registering user:', userData);
     
-    const response = await api.post('/register', userData);
+    const response = await api.post('/api/register', userData);
     return response.data;
   } catch (error) {
     console.error('Register error:', error);
@@ -313,7 +338,7 @@ export const registerUser = async (userData) => {
 // Get registrations (for admin)
 export const getRegistrations = async () => {
   try {
-    const response = await api.get('/admin/registrations');
+    const response = await api.get('/api/admin/registrations');
     return response.data;
   } catch (error) {
     console.error('Get registrations error:', error);
@@ -324,7 +349,7 @@ export const getRegistrations = async () => {
 // Initialize database
 export const initDatabase = async () => {
   try {
-    const response = await api.get('/init-db');
+    const response = await api.get('/api/init-db');
     return response.data;
   } catch (error) {
     console.error('Init database error:', error);
