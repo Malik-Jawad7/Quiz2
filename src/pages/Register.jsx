@@ -37,7 +37,7 @@ const Register = () => {
   });
   
   // Default categories including DevOps
-  const [defaultCategories, setDefaultCategories] = useState([
+  const [defaultCategories] = useState([
     { 
       value: 'html', 
       label: 'HTML', 
@@ -404,10 +404,14 @@ const Register = () => {
       const response = await registerUser(registrationData);
       
       if (response.data.success) {
+        // Save config to localStorage for quiz and result pages
         localStorage.setItem('quizConfig', JSON.stringify(config));
         localStorage.setItem('userData', JSON.stringify(formData));
         localStorage.setItem('quizCategory', formData.category);
         localStorage.setItem('quizRollNumber', rollNumberToSend);
+        localStorage.setItem('quizPassingPercentage', config.passingPercentage.toString());
+        localStorage.setItem('quizTime', config.quizTime.toString());
+        localStorage.setItem('totalQuestions', config.totalQuestions.toString());
         
         const categoryInfo = categories.find(c => c.value === formData.category);
         if (categoryInfo) {

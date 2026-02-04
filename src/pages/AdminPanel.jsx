@@ -60,6 +60,39 @@ const AdminPanel = () => {
     totalQuestions: 100
   });
 
+  // Static categories with logos (you can customize these)
+  const staticCategories = [
+    { value: 'html', label: 'HTML', logo: 'HTML logo' },
+    { value: 'css', label: 'CSS', logo: 'CSS logo' },
+    { value: 'javascript', label: 'JavaScript', logo: 'JavaScript logo' },
+    { value: 'reactjs', label: 'React.js', logo: 'React.js logo' },
+    { value: 'nextjs', label: 'Next.js', logo: 'Next.js logo' },
+    { value: 'vuejs', label: 'Vue.js', logo: 'Vue.js logo' },
+    { value: 'angular', label: 'Angular', logo: 'Angular logo' },
+    { value: 'typescript', label: 'TypeScript', logo: 'TypeScript logo' },
+    { value: 'nodejs', label: 'Node.js', logo: 'Node.js logo' },
+    { value: 'expressjs', label: 'Express.js', logo: 'Express.js logo' },
+    { value: 'python', label: 'Python', logo: 'Python logo' },
+    { value: 'django', label: 'Django', logo: 'Django logo' },
+    { value: 'flask', label: 'Flask', logo: 'Flask logo' },
+    { value: 'java', label: 'Java', logo: 'Java logo' },
+    { value: 'springboot', label: 'Spring Boot', logo: 'Spring Boot logo' },
+    { value: 'php', label: 'PHP', logo: 'PHP logo' },
+    { value: 'laravel', label: 'Laravel', logo: 'Laravel logo' },
+    { value: 'mongodb', label: 'MongoDB', logo: 'MongoDB logo' },
+    { value: 'mysql', label: 'MySQL', logo: 'MySQL logo' },
+    { value: 'postgresql', label: 'PostgreSQL', logo: 'PostgreSQL logo' },
+    { value: 'mern', label: 'MERN Stack', logo: 'MERN Stack logo' },
+    { value: 'graphql', label: 'GraphQL', logo: 'GraphQL logo' },
+    { value: 'git', label: 'Git', logo: 'Git logo' },
+    { value: 'docker', label: 'Docker', logo: 'Docker logo' },
+    { value: 'aws', label: 'AWS', logo: 'AWS logo' },
+    { value: 'jenkins', label: 'Jenkins', logo: 'Jenkins logo' },
+    { value: 'kubernetes', label: 'Kubernetes', logo: 'Kubernetes logo' },
+    { value: 'linux', label: 'Linux', logo: 'Linux logo' },
+    { value: 'ansible', label: 'Ansible', logo: 'Ansible logo' }
+  ];
+
   // Add Question State
   const [newQuestion, setNewQuestion] = useState({
     category: '',
@@ -86,8 +119,8 @@ const AdminPanel = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'submittedAt', direction: 'desc' });
   const [selectedCategory, setSelectedCategory] = useState('all');
   
-  // Categories from API
-  const [categories, setCategories] = useState([]);
+  // Categories state - initialized with static categories
+  const [categories, setCategories] = useState(staticCategories);
 
   // Manage Questions states
   const [detailedViewQuestion, setDetailedViewQuestion] = useState(null);
@@ -152,11 +185,14 @@ const AdminPanel = () => {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // Load categories
+      // Use static categories by default
+      // If you want to load from API, uncomment below:
+      /*
       const categoriesResponse = await apiService.getCategories();
       if (categoriesResponse.success) {
-        setCategories(categoriesResponse.categories || []);
+        setCategories(categoriesResponse.categories || staticCategories);
       }
+      */
 
       // Load config
       const configResponse = await apiService.getConfig();
@@ -322,13 +358,19 @@ const AdminPanel = () => {
     setNewQuestion({ ...newQuestion, options: updatedOptions });
   };
 
-  // Update config
+  // Update config - UPDATED VERSION
   const handleUpdateConfig = async () => {
     setLoading(true);
     try {
       const response = await apiService.updateConfig(config);
       
       if (response.success) {
+        // ALSO SAVE TO LOCALSTORAGE FOR IMMEDIATE USE
+        localStorage.setItem('quizConfig', JSON.stringify(config));
+        
+        // Broadcast change to other tabs/windows
+        window.dispatchEvent(new Event('storage'));
+        
         showNotification('Configuration updated successfully!', 'success');
       } else {
         showNotification(response.message || 'Failed to update config', 'error');
@@ -849,7 +891,7 @@ const AdminPanel = () => {
                   </div>
                   <div className="summary-item">
                     <span>Categories:</span>
-                    <span>{new Set(questions.map(q => q.category)).size}</span>
+                    <span>{categories.length}</span>
                   </div>
                 </div>
               </div>
@@ -900,10 +942,11 @@ const AdminPanel = () => {
                     <option value="">Select Category</option>
                     {categories.map(category => (
                       <option key={category.value} value={category.value}>
-                        {category.label}
+                        {category.label} ({category.logo})
                       </option>
                     ))}
                   </select>
+                  <small>Select from {categories.length} technology categories</small>
                 </div>
                 
                 <div className="form-group">
@@ -1124,12 +1167,18 @@ const AdminPanel = () => {
                         setQuestionsPage(1);
                       }}
                     >
-                      <option value="all">All Categories</option>
-                      {categories.map(category => (
-                        <option key={category.value} value={category.value}>
-                          {category.label} ({questions.filter(q => q.category === category.value).length})
-                        </option>
-                      ))}
+                      <option value="all">All Categories ({questions.length})</option>
+                      {categories.map(category => {
+                        const count = questions.filter(q => q.category === category.value).length;
+                        if (count > 0) {
+                          return (
+                            <option key={category.value} value={category.value}>
+                              {category.label} ({count})
+                            </option>
+                          );
+                        }
+                        return null;
+                      }).filter(Boolean)}
                     </select>
                   </div>
                   
@@ -1376,11 +1425,14 @@ const AdminPanel = () => {
                     onChange={(e) => setSelectedCategory(e.target.value)}
                   >
                     <option value="all">All Categories</option>
-                    {categories.map(category => (
-                      <option key={category.value} value={category.value}>
-                        {category.label} ({results.filter(r => r.category === category.value).length})
-                      </option>
-                    ))}
+                    {categories.map(category => {
+                      const count = results.filter(r => r.category === category.value).length;
+                      return (
+                        <option key={category.value} value={category.value}>
+                          {category.label} ({count})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
