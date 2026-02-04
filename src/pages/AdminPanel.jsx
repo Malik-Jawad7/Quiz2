@@ -39,7 +39,10 @@ import {
   FaEye,
   FaEyeSlash,
   FaFilter,
-  FaTag
+  FaTag,
+  FaArrowLeft,
+  FaArrowRight,
+  FaHome
 } from 'react-icons/fa';
 
 // Import logo
@@ -57,40 +60,40 @@ const AdminPanel = () => {
   const [config, setConfig] = useState({
     quizTime: 30,
     passingPercentage: 40,
-    totalQuestions: 100
+    totalQuestions: 50
   });
 
-  // Static categories with logos (you can customize these)
+  // Static categories
   const staticCategories = [
-    { value: 'html', label: 'HTML', logo: 'HTML logo' },
-    { value: 'css', label: 'CSS', logo: 'CSS logo' },
-    { value: 'javascript', label: 'JavaScript', logo: 'JavaScript logo' },
-    { value: 'reactjs', label: 'React.js', logo: 'React.js logo' },
-    { value: 'nextjs', label: 'Next.js', logo: 'Next.js logo' },
-    { value: 'vuejs', label: 'Vue.js', logo: 'Vue.js logo' },
-    { value: 'angular', label: 'Angular', logo: 'Angular logo' },
-    { value: 'typescript', label: 'TypeScript', logo: 'TypeScript logo' },
-    { value: 'nodejs', label: 'Node.js', logo: 'Node.js logo' },
-    { value: 'expressjs', label: 'Express.js', logo: 'Express.js logo' },
-    { value: 'python', label: 'Python', logo: 'Python logo' },
-    { value: 'django', label: 'Django', logo: 'Django logo' },
-    { value: 'flask', label: 'Flask', logo: 'Flask logo' },
-    { value: 'java', label: 'Java', logo: 'Java logo' },
-    { value: 'springboot', label: 'Spring Boot', logo: 'Spring Boot logo' },
-    { value: 'php', label: 'PHP', logo: 'PHP logo' },
-    { value: 'laravel', label: 'Laravel', logo: 'Laravel logo' },
-    { value: 'mongodb', label: 'MongoDB', logo: 'MongoDB logo' },
-    { value: 'mysql', label: 'MySQL', logo: 'MySQL logo' },
-    { value: 'postgresql', label: 'PostgreSQL', logo: 'PostgreSQL logo' },
-    { value: 'mern', label: 'MERN Stack', logo: 'MERN Stack logo' },
-    { value: 'graphql', label: 'GraphQL', logo: 'GraphQL logo' },
-    { value: 'git', label: 'Git', logo: 'Git logo' },
-    { value: 'docker', label: 'Docker', logo: 'Docker logo' },
-    { value: 'aws', label: 'AWS', logo: 'AWS logo' },
-    { value: 'jenkins', label: 'Jenkins', logo: 'Jenkins logo' },
-    { value: 'kubernetes', label: 'Kubernetes', logo: 'Kubernetes logo' },
-    { value: 'linux', label: 'Linux', logo: 'Linux logo' },
-    { value: 'ansible', label: 'Ansible', logo: 'Ansible logo' }
+    { value: 'html', label: 'HTML' },
+    { value: 'css', label: 'CSS' },
+    { value: 'javascript', label: 'JavaScript' },
+    { value: 'react', label: 'React.js' },
+    { value: 'nextjs', label: 'Next.js' },
+    { value: 'vue', label: 'Vue.js' },
+    { value: 'angular', label: 'Angular' },
+    { value: 'typescript', label: 'TypeScript' },
+    { value: 'node', label: 'Node.js' },
+    { value: 'express', label: 'Express.js' },
+    { value: 'python', label: 'Python' },
+    { value: 'django', label: 'Django' },
+    { value: 'flask', label: 'Flask' },
+    { value: 'java', label: 'Java' },
+    { value: 'spring', label: 'Spring Boot' },
+    { value: 'php', label: 'PHP' },
+    { value: 'laravel', label: 'Laravel' },
+    { value: 'mongodb', label: 'MongoDB' },
+    { value: 'mysql', label: 'MySQL' },
+    { value: 'postgresql', label: 'PostgreSQL' },
+    { value: 'mern', label: 'MERN Stack' },
+    { value: 'graphql', label: 'GraphQL' },
+    { value: 'git', label: 'Git' },
+    { value: 'docker', label: 'Docker' },
+    { value: 'aws', label: 'AWS' },
+    { value: 'jenkins', label: 'Jenkins' },
+    { value: 'kubernetes', label: 'Kubernetes' },
+    { value: 'linux', label: 'Linux' },
+    { value: 'ansible', label: 'Ansible' }
   ];
 
   // Add Question State
@@ -119,7 +122,7 @@ const AdminPanel = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'submittedAt', direction: 'desc' });
   const [selectedCategory, setSelectedCategory] = useState('all');
   
-  // Categories state - initialized with static categories
+  // Categories state
   const [categories, setCategories] = useState(staticCategories);
 
   // Manage Questions states
@@ -137,11 +140,30 @@ const AdminPanel = () => {
     if (!token) {
       navigate('/admin/login');
     } else {
-      loadAllData();
+      // Verify token is still valid
+      const verifyToken = async () => {
+        try {
+          const result = await apiService.checkDashboardAccess();
+          if (!result.success) {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
+            navigate('/admin/login');
+          } else {
+            loadAllData();
+          }
+        } catch (error) {
+          console.error('Token verification failed:', error);
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminUser');
+          navigate('/admin/login');
+        }
+      };
+      
+      verifyToken();
     }
   }, [navigate]);
 
-  // Filter and sort results when dependencies change
+  // Filter and sort results
   useEffect(() => {
     let filtered = results;
     
@@ -185,19 +207,12 @@ const AdminPanel = () => {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // Use static categories by default
-      // If you want to load from API, uncomment below:
-      /*
-      const categoriesResponse = await apiService.getCategories();
-      if (categoriesResponse.success) {
-        setCategories(categoriesResponse.categories || staticCategories);
-      }
-      */
-
       // Load config
       const configResponse = await apiService.getConfig();
       if (configResponse.success) {
         setConfig(configResponse.config);
+        // Save to localStorage for quiz
+        localStorage.setItem('quizConfig', JSON.stringify(configResponse.config));
       }
 
       // Load stats
@@ -263,19 +278,51 @@ const AdminPanel = () => {
 
   // Add new question
   const handleAddQuestion = async () => {
-    if (!newQuestion.category || !newQuestion.questionText || 
-        newQuestion.options.filter(opt => opt.text.trim() === '').length > 0 ||
-        newQuestion.options.filter(opt => opt.isCorrect).length !== 1) {
-      showNotification('Please fill all fields and select exactly one correct option', 'error');
+    // Validation
+    if (!newQuestion.category.trim()) {
+      showNotification('Please select a category', 'error');
+      return;
+    }
+    
+    if (!newQuestion.questionText.trim()) {
+      showNotification('Please enter question text', 'error');
+      return;
+    }
+    
+    // Check options
+    const validOptions = newQuestion.options.filter(opt => opt.text.trim() !== '');
+    if (validOptions.length < 2) {
+      showNotification('Please add at least 2 valid options', 'error');
+      return;
+    }
+    
+    // Check exactly one correct option
+    const correctOptions = validOptions.filter(opt => opt.isCorrect);
+    if (correctOptions.length !== 1) {
+      showNotification('Please select exactly one correct option', 'error');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await apiService.addQuestion(newQuestion);
+      // Prepare question data
+      const questionData = {
+        category: newQuestion.category,
+        questionText: newQuestion.questionText.trim(),
+        options: validOptions.map(opt => ({
+          text: opt.text.trim(),
+          isCorrect: Boolean(opt.isCorrect)
+        })),
+        marks: parseInt(newQuestion.marks) || 1,
+        difficulty: newQuestion.difficulty
+      };
+      
+      console.log('Adding question to database:', questionData);
+      
+      const response = await apiService.addQuestion(questionData);
       
       if (response.success) {
-        // Reload questions
+        // Reload questions from database
         const questionsResponse = await apiService.getAllQuestions();
         if (questionsResponse.success) {
           setQuestions(questionsResponse.questions || []);
@@ -290,13 +337,13 @@ const AdminPanel = () => {
           difficulty: 'medium'
         });
 
-        showNotification('Question added successfully!', 'success');
+        showNotification('Question added successfully to MongoDB!', 'success');
       } else {
         showNotification(response.message || 'Failed to add question', 'error');
       }
     } catch (error) {
       console.error('Error adding question:', error);
-      showNotification('Error adding question: ' + (error.message || 'Unknown error'), 'error');
+      showNotification('Error: ' + (error.message || 'Failed to connect to server'), 'error');
     } finally {
       setLoading(false);
     }
@@ -358,14 +405,14 @@ const AdminPanel = () => {
     setNewQuestion({ ...newQuestion, options: updatedOptions });
   };
 
-  // Update config - UPDATED VERSION
+  // Update config
   const handleUpdateConfig = async () => {
     setLoading(true);
     try {
       const response = await apiService.updateConfig(config);
       
       if (response.success) {
-        // ALSO SAVE TO LOCALSTORAGE FOR IMMEDIATE USE
+        // Save to localStorage for immediate use
         localStorage.setItem('quizConfig', JSON.stringify(config));
         
         // Broadcast change to other tabs/windows
@@ -440,6 +487,7 @@ const AdminPanel = () => {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
       navigate('/admin/login');
     }
   };
@@ -459,17 +507,14 @@ const AdminPanel = () => {
   const getFilteredQuestions = () => {
     let filtered = [...questions];
     
-    // Filter by category
     if (questionsSelectedCategory !== 'all') {
       filtered = filtered.filter(q => q.category === questionsSelectedCategory);
     }
     
-    // Filter by difficulty
     if (questionsSelectedDifficulty !== 'all') {
       filtered = filtered.filter(q => q.difficulty === questionsSelectedDifficulty);
     }
     
-    // Filter by search term
     if (questionsSearchTerm) {
       const searchLower = questionsSearchTerm.toLowerCase();
       filtered = filtered.filter(q => 
@@ -510,7 +555,7 @@ const AdminPanel = () => {
     };
   };
 
-  // Render a question card with ALL options visible
+  // Render a question card
   const renderQuestionCard = (question, index) => {
     const isEven = index % 2 === 0;
     
@@ -537,6 +582,13 @@ const AdminPanel = () => {
           </div>
           
           <div className="question-card-actions">
+            <button 
+              className="action-btn-icon view"
+              onClick={() => handleViewQuestionDetails(question)}
+              title="View details"
+            >
+              <FaEye />
+            </button>
             <button 
               className="action-btn-icon delete"
               onClick={() => handleDeleteQuestion(question._id)}
@@ -602,7 +654,22 @@ const AdminPanel = () => {
 
   // Question Detail View
   const QuestionDetailView = () => {
-    if (!detailedViewQuestion) return null;
+    if (!detailedViewQuestion) {
+      return (
+        <div className="question-detail-view">
+          <div className="section-header">
+            <h2><FaEye /> Question Details</h2>
+            <button 
+              className="btn-secondary"
+              onClick={() => setActiveTab('manage-questions')}
+            >
+              <FaArrowLeft /> Back to Questions
+            </button>
+          </div>
+          <div className="no-data">No question selected</div>
+        </div>
+      );
+    }
     
     return (
       <div className="question-detail-view">
@@ -612,7 +679,7 @@ const AdminPanel = () => {
             className="btn-secondary"
             onClick={() => setActiveTab('manage-questions')}
           >
-            <FaEyeSlash /> Back to Questions
+            <FaArrowLeft /> Back to Questions
           </button>
         </div>
         
@@ -812,6 +879,14 @@ const AdminPanel = () => {
             <FaSignOutAlt />
             <span>Logout</span>
           </button>
+
+          <button 
+            onClick={() => navigate('/')} 
+            className="home-btn"
+          >
+            <FaHome />
+            <span>Home</span>
+          </button>
         </div>
       </div>
 
@@ -942,11 +1017,11 @@ const AdminPanel = () => {
                     <option value="">Select Category</option>
                     {categories.map(category => (
                       <option key={category.value} value={category.value}>
-                        {category.label} ({category.logo})
+                        {category.label}
                       </option>
                     ))}
                   </select>
-                  <small>Select from {categories.length} technology categories</small>
+                  <small>Select technology category</small>
                 </div>
                 
                 <div className="form-group">
@@ -1033,6 +1108,7 @@ const AdminPanel = () => {
                     </button>
                   )}
                 </div>
+                <small className="form-hint">Select exactly one correct option</small>
               </div>
               
               <div className="form-actions">
@@ -1043,7 +1119,7 @@ const AdminPanel = () => {
                   disabled={loading}
                 >
                   {loading ? <FaSpinner className="spinning" /> : <FaSave />} 
-                  {loading ? 'Saving...' : 'Add to Database'}
+                  {loading ? 'Saving...' : 'Save to Database'}
                 </button>
                 <button 
                   type="button" 
@@ -1327,7 +1403,7 @@ const AdminPanel = () => {
                       onClick={() => setQuestionsPage(prev => Math.max(1, prev - 1))}
                       disabled={questionsPage === 1}
                     >
-                      <FaTimes /> Previous
+                      <FaArrowLeft /> Previous
                     </button>
                     
                     <div className="pagination-numbers">
@@ -1372,7 +1448,7 @@ const AdminPanel = () => {
                       onClick={() => setQuestionsPage(prev => Math.min(getPaginatedQuestions().totalPages, prev + 1))}
                       disabled={questionsPage === getPaginatedQuestions().totalPages}
                     >
-                      Next <FaTimes />
+                      Next <FaArrowRight />
                     </button>
                   </div>
                 </div>

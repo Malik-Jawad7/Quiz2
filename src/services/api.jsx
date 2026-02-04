@@ -1,10 +1,7 @@
 import axios from 'axios';
 
-// Production Backend URL - آپ کا Vercel backend URL
-const API_BASE_URL = 'https://backend-one-taupe-14.vercel.app/api';
-
-// Local development URL
-// const API_BASE_URL = 'http://localhost:5000/api';
+// Backend URL
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -19,56 +16,13 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('adminToken');
-    
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
-    
-    console.log('🚀 API Request:', {
-      url: config.url,
-      method: config.method,
-      baseURL: config.baseURL
-    });
-    
     return config;
   },
   (error) => {
-    console.error('❌ Request Interceptor Error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// Response Interceptor
-api.interceptors.response.use(
-  (response) => {
-    console.log('✅ API Response Success:', {
-      url: response.config.url,
-      status: response.status,
-      data: response.data
-    });
-    return response;
-  },
-  (error) => {
-    console.error('❌ API Response Error:', {
-      url: error.config?.url,
-      status: error.response?.status,
-      message: error.message,
-      response: error.response?.data
-    });
-    
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401) {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminUser');
-      
-      // Redirect to login if not already there
-      if (!window.location.pathname.includes('/admin/login')) {
-        setTimeout(() => {
-          window.location.href = '/admin/login';
-        }, 1000);
-      }
-    }
-    
+    console.error('Request Error:', error);
     return Promise.reject(error);
   }
 );
@@ -76,23 +30,18 @@ api.interceptors.response.use(
 // Test server connection
 export const testServerConnection = async () => {
   try {
-    console.log('🔗 Testing server connection to:', API_BASE_URL);
     const response = await api.get('/health');
-    
     return { 
       success: true, 
       data: response.data,
-      url: API_BASE_URL,
-      timestamp: new Date().toISOString()
+      url: API_BASE_URL
     };
   } catch (error) {
-    console.error('❌ Server connection failed:', error);
-    
+    console.error('Server connection failed:', error);
     return { 
       success: false, 
       message: error.message || 'API connection failed',
-      url: API_BASE_URL,
-      timestamp: new Date().toISOString()
+      url: API_BASE_URL
     };
   }
 };
@@ -100,59 +49,23 @@ export const testServerConnection = async () => {
 // Admin login
 export const adminLogin = async (credentials) => {
   try {
-    console.log('🔐 Attempting admin login...', credentials);
-    
-    // Try direct fetch first for fallback
-    try {
-      const directResponse = await fetch(`${API_BASE_URL}/admin/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-      
-      const directData = await directResponse.json();
-      
-      if (directData.success) {
-        console.log('✅ Login successful via direct fetch');
-        
-        // Save token
-        if (directData.token) {
-          localStorage.setItem('adminToken', directData.token);
-          localStorage.setItem('adminUser', JSON.stringify(directData.user || {}));
-        }
-        
-        return directData;
-      }
-    } catch (fetchError) {
-      console.log('Direct fetch failed, trying axios...');
-    }
-    
-    // Fallback to axios
     const response = await api.post('/admin/login', credentials);
     
-    if (response.data.success) {
-      console.log('✅ Login successful via axios');
-      
-      // Save token
+    if (response.data.success && response.data.token) {
       localStorage.setItem('adminToken', response.data.token);
       localStorage.setItem('adminUser', JSON.stringify(response.data.user || {}));
     }
     
     return response.data;
   } catch (error) {
-    console.error('❌ Login error:', error);
+    console.error('Login error:', error);
     
     // Development fallback
     if (credentials.username === 'admin' && credentials.password === 'admin123') {
-      console.log('🛠️ Using development fallback login');
-      
       const devToken = 'dev_token_' + Date.now();
       localStorage.setItem('adminToken', devToken);
       localStorage.setItem('adminUser', JSON.stringify({
         username: 'admin',
-        email: 'admin@shamsi.edu.pk',
         role: 'superadmin'
       }));
       
@@ -162,41 +75,12 @@ export const adminLogin = async (credentials) => {
         token: devToken,
         user: {
           username: 'admin',
-          email: 'admin@shamsi.edu.pk',
           role: 'superadmin'
         }
       };
     }
     
     throw error;
-  }
-};
-
-// Get Dashboard Stats
-export const getDashboardStats = async () => {
-  try {
-    console.log('📊 Fetching dashboard stats...');
-    const response = await api.get('/admin/dashboard');
-    return response.data;
-  } catch (error) {
-    console.error('❌ Dashboard error:', error);
-    
-    // Return fallback data
-    return {
-      success: true,
-      stats: {
-        totalStudents: 0,
-        totalQuestions: 0,
-        totalAttempts: 0,
-        averageScore: 0,
-        passRate: 0,
-        todayAttempts: 0,
-        quizTime: 30,
-        passingPercentage: 40,
-        totalCategories: 0
-      },
-      message: 'Using fallback data'
-    };
   }
 };
 
@@ -208,19 +92,45 @@ export const checkDashboardAccess = async () => {
     if (!token) {
       return { 
         success: false, 
-        message: 'No token found' 
+        message: 'No token found. Please login.' 
       };
     }
     
-    const data = await getDashboardStats();
+    // Try to get dashboard stats to verify token
+    const response = await api.get('/admin/dashboard');
     return { 
-      success: data.success, 
-      data
+      success: response.data.success, 
+      data: response.data
     };
   } catch (error) {
+    console.error('Access check error:', error);
     return { 
       success: false, 
-      message: error.message || 'Access check failed'
+      message: error.response?.data?.message || error.message || 'Access check failed'
+    };
+  }
+};
+
+// Get dashboard stats
+export const getDashboardStats = async () => {
+  try {
+    const response = await api.get('/admin/dashboard');
+    return response.data;
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    return {
+      success: true,
+      stats: {
+        totalStudents: 0,
+        totalQuestions: 0,
+        totalAttempts: 0,
+        averageScore: 0,
+        passRate: 0,
+        todayAttempts: 0,
+        quizTime: 30,
+        passingPercentage: 40
+      },
+      message: 'Using fallback data'
     };
   }
 };
@@ -228,18 +138,14 @@ export const checkDashboardAccess = async () => {
 // Get all questions
 export const getAllQuestions = async () => {
   try {
-    console.log('📝 Fetching all questions...');
     const response = await api.get('/admin/questions');
     return response.data;
   } catch (error) {
-    console.error('❌ Get questions error:', error);
-    
-    // Return empty questions for fallback
+    console.error('Get questions error:', error);
     return {
       success: true,
       questions: [],
-      count: 0,
-      message: 'No questions available'
+      count: 0
     };
   }
 };
@@ -247,11 +153,22 @@ export const getAllQuestions = async () => {
 // Add question
 export const addQuestion = async (questionData) => {
   try {
-    console.log('➕ Adding question:', questionData);
+    console.log('Sending question to server:', questionData);
+    
     const response = await api.post('/admin/questions', questionData);
     return response.data;
   } catch (error) {
-    console.error('❌ Add question error:', error);
+    console.error('Add question error:', error);
+    
+    // Show specific error message
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    
+    if (error.message?.includes('Network Error')) {
+      throw new Error('Cannot connect to server. Please make sure backend is running on port 5000.');
+    }
+    
     throw error;
   }
 };
@@ -259,11 +176,10 @@ export const addQuestion = async (questionData) => {
 // Delete question
 export const deleteQuestion = async (questionId) => {
   try {
-    console.log('🗑️ Deleting question:', questionId);
     const response = await api.delete(`/admin/questions/${questionId}`);
     return response.data;
   } catch (error) {
-    console.error('❌ Delete question error:', error);
+    console.error('Delete question error:', error);
     throw error;
   }
 };
@@ -271,18 +187,14 @@ export const deleteQuestion = async (questionId) => {
 // Get results
 export const getResults = async () => {
   try {
-    console.log('📈 Fetching results...');
     const response = await api.get('/admin/results');
     return response.data;
   } catch (error) {
-    console.error('❌ Get results error:', error);
-    
-    // Return empty results for fallback
+    console.error('Get results error:', error);
     return {
       success: true,
       results: [],
-      count: 0,
-      message: 'No results available'
+      count: 0
     };
   }
 };
@@ -290,11 +202,10 @@ export const getResults = async () => {
 // Delete result
 export const deleteResult = async (resultId) => {
   try {
-    console.log('🗑️ Deleting result:', resultId);
     const response = await api.delete(`/admin/results/${resultId}`);
     return response.data;
   } catch (error) {
-    console.error('❌ Delete result error:', error);
+    console.error('Delete result error:', error);
     throw error;
   }
 };
@@ -302,11 +213,10 @@ export const deleteResult = async (resultId) => {
 // Delete all results
 export const deleteAllResults = async () => {
   try {
-    console.log('🗑️ Deleting all results...');
     const response = await api.delete('/admin/results');
     return response.data;
   } catch (error) {
-    console.error('❌ Delete all results error:', error);
+    console.error('Delete all results error:', error);
     throw error;
   }
 };
@@ -314,21 +224,17 @@ export const deleteAllResults = async () => {
 // Get config
 export const getConfig = async () => {
   try {
-    console.log('⚙️ Fetching config...');
     const response = await api.get('/config');
     return response.data;
   } catch (error) {
-    console.error('❌ Get config error:', error);
-    
-    // Return default config
+    console.error('Get config error:', error);
     return {
       success: true,
       config: {
         quizTime: 30,
         passingPercentage: 40,
         totalQuestions: 50
-      },
-      message: 'Using default config'
+      }
     };
   }
 };
@@ -336,11 +242,10 @@ export const getConfig = async () => {
 // Update config
 export const updateConfig = async (configData) => {
   try {
-    console.log('⚙️ Updating config:', configData);
     const response = await api.put('/config', configData);
     return response.data;
   } catch (error) {
-    console.error('❌ Update config error:', error);
+    console.error('Update config error:', error);
     throw error;
   }
 };
@@ -348,58 +253,47 @@ export const updateConfig = async (configData) => {
 // Get categories
 export const getCategories = async () => {
   try {
-    console.log('📂 Fetching categories...');
     const response = await api.get('/categories');
     return response.data;
   } catch (error) {
-    console.error('❌ Get categories error:', error);
-    
-    // Return default categories
+    console.error('Get categories error:', error);
     return {
       success: true,
-      categories: [
-        { value: 'html', label: 'HTML', questionCount: 0 },
-        { value: 'css', label: 'CSS', questionCount: 0 },
-        { value: 'javascript', label: 'JavaScript', questionCount: 0 },
-        { value: 'react', label: 'React', questionCount: 0 },
-        { value: 'node', label: 'Node.js', questionCount: 0 },
-        { value: 'python', label: 'Python', questionCount: 0 },
-        { value: 'java', label: 'Java', questionCount: 0 },
-        { value: 'devops', label: 'DevOps', questionCount: 0 }
-      ],
-      message: 'Using default categories'
+      categories: []
     };
   }
 };
 
-// Get quiz questions
+// Get quiz questions - NO STATIC QUESTIONS
 export const getQuizQuestions = async (category) => {
   try {
-    console.log('❓ Fetching quiz questions for category:', category);
+    console.log('Fetching questions for category:', category);
+    
     const response = await api.get(`/quiz/questions/${category}`);
+    
+    if (!response.data.success) {
+      throw new Error(response.data.message || 'Failed to get questions');
+    }
+    
+    if (!response.data.questions || response.data.questions.length === 0) {
+      throw new Error('No questions available for this category');
+    }
+    
+    console.log('Questions received from database:', response.data.questions.length);
     return response.data;
   } catch (error) {
-    console.error('❌ Get quiz questions error:', error);
-    
-    // Return empty questions for fallback
-    return {
-      success: true,
-      questions: [],
-      count: 0,
-      message: 'No questions available',
-      category: category
-    };
+    console.error('Get quiz questions error:', error);
+    throw error;
   }
 };
 
 // Submit quiz
 export const submitQuiz = async (quizData) => {
   try {
-    console.log('📤 Submitting quiz:', quizData);
     const response = await api.post('/quiz/submit', quizData);
     return response.data;
   } catch (error) {
-    console.error('❌ Submit quiz error:', error);
+    console.error('Submit quiz error:', error);
     
     // Still return success for offline mode
     return {
@@ -413,9 +307,7 @@ export const submitQuiz = async (quizData) => {
 // Register user
 export const registerUser = async (userData) => {
   try {
-    console.log('👤 Registering user:', userData);
-    
-    // For now, just return success
+    // For development, just return success
     return {
       data: {
         success: true,
@@ -424,9 +316,7 @@ export const registerUser = async (userData) => {
       }
     };
   } catch (error) {
-    console.error('❌ Register error:', error);
-    
-    // Return fallback
+    console.error('Register error:', error);
     return {
       data: {
         success: true,
@@ -440,11 +330,10 @@ export const registerUser = async (userData) => {
 // Initialize database
 export const initDatabase = async () => {
   try {
-    console.log('🔄 Initializing database...');
     const response = await api.get('/init-db');
     return response.data;
   } catch (error) {
-    console.error('❌ Init database error:', error);
+    console.error('Init database error:', error);
     throw error;
   }
 };
@@ -476,9 +365,9 @@ const apiService = {
   getCategories,
   getQuizQuestions,
   submitQuiz,
-  adminLogout,
   initDatabase,
-  registerUser
+  registerUser,
+  adminLogout
 };
 
 export default apiService;
