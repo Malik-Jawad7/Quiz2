@@ -24,7 +24,6 @@ import {
   FaBars,
   FaCheck,
   FaUser,
-  FaServer,
   FaClock,
   FaPercentage,
   FaListOl,
@@ -37,11 +36,10 @@ import {
   FaInfoCircle,
   FaDatabase,
   FaSpinner,
+  FaEye,
+  FaEyeSlash,
   FaFilter,
-  FaSort,
-  FaSortUp,
-  FaSortDown,
-  FaEye
+  FaTag
 } from 'react-icons/fa';
 
 // Import logo
@@ -91,9 +89,18 @@ const AdminPanel = () => {
   // Categories from API
   const [categories, setCategories] = useState([]);
 
+  // Manage Questions states
+  const [detailedViewQuestion, setDetailedViewQuestion] = useState(null);
+  const [questionsSearchTerm, setQuestionsSearchTerm] = useState('');
+  const [questionsSelectedCategory, setQuestionsSelectedCategory] = useState('all');
+  const [questionsSelectedDifficulty, setQuestionsSelectedDifficulty] = useState('all');
+  const [questionsPage, setQuestionsPage] = useState(1);
+  const questionsPerPage = 10;
+
   // Load data on component mount
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
+    
     if (!token) {
       navigate('/admin/login');
     } else {
@@ -105,7 +112,6 @@ const AdminPanel = () => {
   useEffect(() => {
     let filtered = results;
     
-    // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(result =>
         result.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,14 +120,12 @@ const AdminPanel = () => {
       );
     }
     
-    // Filter by category
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(result => 
         result.category?.toLowerCase() === selectedCategory.toLowerCase()
       );
     }
     
-    // Sort results
     filtered.sort((a, b) => {
       if (sortConfig.key === 'name') {
         return sortConfig.direction === 'asc' 
@@ -148,35 +152,35 @@ const AdminPanel = () => {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      // Load categories first
+      // Load categories
       const categoriesResponse = await apiService.getCategories();
-      if (categoriesResponse.data?.success) {
-        setCategories(categoriesResponse.data.categories || []);
+      if (categoriesResponse.success) {
+        setCategories(categoriesResponse.categories || []);
       }
 
       // Load config
       const configResponse = await apiService.getConfig();
-      if (configResponse.data?.success) {
-        setConfig(configResponse.data.config);
+      if (configResponse.success) {
+        setConfig(configResponse.config);
       }
 
       // Load stats
       const statsResponse = await apiService.getDashboardStats();
-      if (statsResponse.data?.success) {
-        setStats(statsResponse.data.stats);
+      if (statsResponse.success) {
+        setStats(statsResponse.stats);
       }
       
       // Load questions
       const questionsResponse = await apiService.getAllQuestions();
-      if (questionsResponse.data?.success) {
-        setQuestions(questionsResponse.data.questions || []);
+      if (questionsResponse.success) {
+        setQuestions(questionsResponse.questions || []);
       }
       
       // Load results
       const resultsResponse = await apiService.getResults();
-      if (resultsResponse.data?.success) {
-        setResults(resultsResponse.data.results || []);
-        setFilteredResults(resultsResponse.data.results || []);
+      if (resultsResponse.success) {
+        setResults(resultsResponse.results || []);
+        setFilteredResults(resultsResponse.results || []);
       }
       
       showNotification('Data loaded successfully', 'success');
@@ -186,6 +190,39 @@ const AdminPanel = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Delete single result
+  const handleDeleteResult = async (resultId, studentName) => {
+    if (!window.confirm(`Are you sure you want to delete ${studentName}'s result? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const response = await apiService.deleteResult(resultId);
+      
+      if (response.success) {
+        const updatedResults = results.filter(r => r._id !== resultId);
+        setResults(updatedResults);
+        setFilteredResults(updatedResults.filter(r => r._id !== resultId));
+        
+        showNotification(`${studentName}'s result deleted successfully!`, 'success');
+      } else {
+        showNotification(response.message || 'Failed to delete result', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting result:', error);
+      showNotification('Error deleting result: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // View detailed question
+  const handleViewQuestionDetails = (question) => {
+    setDetailedViewQuestion(question);
+    setActiveTab('question-detail');
   };
 
   // Add new question
@@ -201,11 +238,11 @@ const AdminPanel = () => {
     try {
       const response = await apiService.addQuestion(newQuestion);
       
-      if (response.data?.success) {
+      if (response.success) {
         // Reload questions
         const questionsResponse = await apiService.getAllQuestions();
-        if (questionsResponse.data?.success) {
-          setQuestions(questionsResponse.data.questions || []);
+        if (questionsResponse.success) {
+          setQuestions(questionsResponse.questions || []);
         }
 
         // Reset form
@@ -219,11 +256,11 @@ const AdminPanel = () => {
 
         showNotification('Question added successfully!', 'success');
       } else {
-        showNotification(response.data?.message || 'Failed to add question', 'error');
+        showNotification(response.message || 'Failed to add question', 'error');
       }
     } catch (error) {
       console.error('Error adding question:', error);
-      showNotification('Error adding question: ' + (error.response?.data?.message || error.message), 'error');
+      showNotification('Error adding question: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -235,14 +272,13 @@ const AdminPanel = () => {
       try {
         const response = await apiService.deleteQuestion(questionId);
         
-        if (response.data?.success) {
-          // Update local state
+        if (response.success) {
           const updatedQuestions = questions.filter(q => q._id !== questionId);
           setQuestions(updatedQuestions);
           
           showNotification('Question deleted successfully!', 'success');
         } else {
-          showNotification(response.data?.message || 'Failed to delete question', 'error');
+          showNotification(response.message || 'Failed to delete question', 'error');
         }
       } catch (error) {
         console.error('Error deleting question:', error);
@@ -292,10 +328,10 @@ const AdminPanel = () => {
     try {
       const response = await apiService.updateConfig(config);
       
-      if (response.data?.success) {
+      if (response.success) {
         showNotification('Configuration updated successfully!', 'success');
       } else {
-        showNotification(response.data?.message || 'Failed to update config', 'error');
+        showNotification(response.message || 'Failed to update config', 'error');
       }
     } catch (error) {
       console.error('Error updating config:', error);
@@ -315,7 +351,7 @@ const AdminPanel = () => {
     try {
       const response = await apiService.deleteAllResults();
       
-      if (response.data?.success) {
+      if (response.success) {
         setResults([]);
         setFilteredResults([]);
         
@@ -329,7 +365,7 @@ const AdminPanel = () => {
         
         showNotification('All results deleted successfully!', 'success');
       } else {
-        showNotification(response.data?.message || 'Failed to delete all results', 'error');
+        showNotification(response.message || 'Failed to delete all results', 'error');
       }
     } catch (error) {
       console.error('Error deleting all results:', error);
@@ -350,8 +386,8 @@ const AdminPanel = () => {
 
   // Get sort icon
   const getSortIcon = (key) => {
-    if (sortConfig.key !== key) return <FaSort />;
-    return sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />;
+    if (sortConfig.key !== key) return null;
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
   const showNotification = (message, type = 'success') => {
@@ -362,7 +398,6 @@ const AdminPanel = () => {
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to logout?')) {
       localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminUser');
       navigate('/admin/login');
     }
   };
@@ -378,24 +413,136 @@ const AdminPanel = () => {
     });
   };
 
-  const getCategoryInfo = (category) => {
-    const categoryData = categories.find(c => c.value === category);
-    if (categoryData) {
-      return categoryData;
+  // Get filtered and sorted questions
+  const getFilteredQuestions = () => {
+    let filtered = [...questions];
+    
+    // Filter by category
+    if (questionsSelectedCategory !== 'all') {
+      filtered = filtered.filter(q => q.category === questionsSelectedCategory);
     }
     
-    const questionsInCategory = questions.filter(q => q.category === category);
-    const totalMarks = questionsInCategory.reduce((sum, q) => sum + (q.marks || 1), 0);
+    // Filter by difficulty
+    if (questionsSelectedDifficulty !== 'all') {
+      filtered = filtered.filter(q => q.difficulty === questionsSelectedDifficulty);
+    }
+    
+    // Filter by search term
+    if (questionsSearchTerm) {
+      const searchLower = questionsSearchTerm.toLowerCase();
+      filtered = filtered.filter(q => 
+        q.questionText.toLowerCase().includes(searchLower) ||
+        (q.options && q.options.some(opt => 
+          opt.text.toLowerCase().includes(searchLower)
+        )) ||
+        q.category.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return filtered;
+  };
+
+  // Get paginated questions
+  const getPaginatedQuestions = () => {
+    const filtered = getFilteredQuestions();
+    const startIndex = (questionsPage - 1) * questionsPerPage;
+    const endIndex = startIndex + questionsPerPage;
     
     return {
-      value: category,
-      label: category.toUpperCase(),
-      questionCount: questionsInCategory.length,
-      totalMarks: totalMarks,
-      isComplete: totalMarks >= 100
+      paginatedQuestions: filtered.slice(startIndex, endIndex),
+      totalPages: Math.ceil(filtered.length / questionsPerPage),
+      totalFiltered: filtered.length
     };
   };
 
+  // Calculate question statistics
+  const getQuestionStats = () => {
+    const filtered = getFilteredQuestions();
+    return {
+      total: filtered.length,
+      categories: new Set(filtered.map(q => q.category)).size,
+      easy: filtered.filter(q => q.difficulty === 'easy').length,
+      medium: filtered.filter(q => q.difficulty === 'medium').length,
+      hard: filtered.filter(q => q.difficulty === 'hard').length,
+      totalMarks: filtered.reduce((total, q) => total + (q.marks || 1), 0)
+    };
+  };
+
+  // Render a question card with ALL options visible
+  const renderQuestionCard = (question, index) => {
+    const isEven = index % 2 === 0;
+    
+    return (
+      <div key={question._id || index} className={`question-card ${isEven ? 'even' : 'odd'}`}>
+        <div className="question-card-header">
+          <div className="question-meta">
+            <div className="question-tags">
+              <span className="question-tag tag-category">
+                <FaTag /> {question.category || 'Uncategorized'}
+              </span>
+              <span className="question-tag tag-marks">
+                {question.marks || 1} marks
+              </span>
+              <span className={`question-tag tag-difficulty ${question.difficulty || 'medium'}`}>
+                {question.difficulty || 'medium'}
+              </span>
+            </div>
+            <div className="question-title">
+              {question.questionText.length > 100 
+                ? `${question.questionText.substring(0, 100)}...` 
+                : question.questionText}
+            </div>
+          </div>
+          
+          <div className="question-card-actions">
+            <button 
+              className="action-btn-icon delete"
+              onClick={() => handleDeleteQuestion(question._id)}
+              disabled={loading}
+              title="Delete question"
+            >
+              <FaTrash />
+            </button>
+          </div>
+        </div>
+        
+        <div className="question-card-body">
+          <div className="question-text-preview">
+            <p>{question.questionText}</p>
+          </div>
+          
+          {question.options && question.options.length > 0 && (
+            <div className="question-options-preview">
+              {question.options.map((option, idx) => (
+                <div key={idx} className={`option-preview-item ${option.isCorrect ? 'correct' : ''}`}>
+                  <div className="option-letter">
+                    {String.fromCharCode(65 + idx)}
+                  </div>
+                  <div className="option-text">
+                    {option.text}
+                  </div>
+                  {option.isCorrect && (
+                    <FaCheck className="correct-indicator" />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="question-card-footer">
+          <div className="question-id">
+            ID: {question._id?.substring(0, 8) || 'N/A'}
+          </div>
+          <div className="question-date">
+            <FaClock /> {formatDate(question.createdAt)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render stat card
   const renderStatCard = (title, value, icon, color = 'blue', subtitle = '') => {
     return (
       <div className="stat-card">
@@ -410,6 +557,97 @@ const AdminPanel = () => {
       </div>
     );
   };
+
+  // Question Detail View
+  const QuestionDetailView = () => {
+    if (!detailedViewQuestion) return null;
+    
+    return (
+      <div className="question-detail-view">
+        <div className="section-header">
+          <h2><FaEye /> Question Details</h2>
+          <button 
+            className="btn-secondary"
+            onClick={() => setActiveTab('manage-questions')}
+          >
+            <FaEyeSlash /> Back to Questions
+          </button>
+        </div>
+        
+        <div className="question-detail-card">
+          <div className="detail-header">
+            <div className="detail-meta">
+              <div className="detail-category">
+                <strong>Category:</strong> {detailedViewQuestion.category || 'Uncategorized'}
+              </div>
+              <div className="detail-marks">
+                <strong>Marks:</strong> {detailedViewQuestion.marks || 1}
+              </div>
+              <div className={`detail-difficulty ${detailedViewQuestion.difficulty || 'medium'}`}>
+                <strong>Difficulty:</strong> {detailedViewQuestion.difficulty || 'medium'}
+              </div>
+              <div className="detail-id">
+                <strong>ID:</strong> {detailedViewQuestion._id?.substring(0, 12) || 'N/A'}
+              </div>
+            </div>
+          </div>
+          
+          <div className="detail-question">
+            <h3>Question:</h3>
+            <p>{detailedViewQuestion.questionText}</p>
+          </div>
+          
+          <div className="detail-options">
+            <h3>Options:</h3>
+            <div className="options-list">
+              {detailedViewQuestion.options && detailedViewQuestion.options.map((option, index) => (
+                <div 
+                  key={index} 
+                  className={`detail-option ${option.isCorrect ? 'correct-option' : ''}`}
+                >
+                  <div className="option-header">
+                    <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+                    <span className="option-text">{option.text}</span>
+                    {option.isCorrect && (
+                      <span className="correct-badge">
+                        <FaCheck /> Correct Answer
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="detail-footer">
+            <div className="detail-date">
+              <strong>Created:</strong> {formatDate(detailedViewQuestion.createdAt)}
+            </div>
+            <div className="detail-actions">
+              <button 
+                className="btn-danger"
+                onClick={() => {
+                  handleDeleteQuestion(detailedViewQuestion._id);
+                  setActiveTab('manage-questions');
+                }}
+              >
+                <FaTrash /> Delete Question
+              </button>
+              <button 
+                className="btn-secondary"
+                onClick={() => setActiveTab('manage-questions')}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Get question stats
+  const questionStats = getQuestionStats();
 
   return (
     <div className="admin-panel">
@@ -458,7 +696,10 @@ const AdminPanel = () => {
         <nav className="sidebar-nav">
           <button 
             className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
+            onClick={() => { 
+              setActiveTab('dashboard'); 
+              setMobileMenuOpen(false); 
+            }}
           >
             <FaTachometerAlt />
             <span>Dashboard</span>
@@ -466,7 +707,10 @@ const AdminPanel = () => {
           
           <button 
             className={`nav-item ${activeTab === 'add-question' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('add-question'); setMobileMenuOpen(false); }}
+            onClick={() => { 
+              setActiveTab('add-question'); 
+              setMobileMenuOpen(false); 
+            }}
           >
             <FaPlusCircle />
             <span>Add Question</span>
@@ -474,23 +718,38 @@ const AdminPanel = () => {
           
           <button 
             className={`nav-item ${activeTab === 'manage-questions' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('manage-questions'); setMobileMenuOpen(false); }}
+            onClick={() => { 
+              setActiveTab('manage-questions'); 
+              setMobileMenuOpen(false); 
+            }}
           >
             <FaEdit />
-            <span>Manage Questions ({questions.length})</span>
+            <span>Manage Questions</span>
+            {questions.length > 0 && (
+              <span className="nav-badge">{questions.length}</span>
+            )}
           </button>
           
           <button 
             className={`nav-item ${activeTab === 'results' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('results'); setMobileMenuOpen(false); }}
+            onClick={() => { 
+              setActiveTab('results'); 
+              setMobileMenuOpen(false); 
+            }}
           >
             <FaChartBar />
-            <span>Results ({results.length})</span>
+            <span>Results</span>
+            {results.length > 0 && (
+              <span className="nav-badge">{results.length}</span>
+            )}
           </button>
           
           <button 
             className={`nav-item ${activeTab === 'config' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('config'); setMobileMenuOpen(false); }}
+            onClick={() => { 
+              setActiveTab('config'); 
+              setMobileMenuOpen(false); 
+            }}
           >
             <FaCog />
             <span>Configuration</span>
@@ -511,11 +770,6 @@ const AdminPanel = () => {
             <FaSignOutAlt />
             <span>Logout</span>
           </button>
-          
-          <div className="server-status online">
-            <span className="status-dot"></span>
-            <span>Database Connected</span>
-          </div>
         </div>
       </div>
 
@@ -529,6 +783,7 @@ const AdminPanel = () => {
             {activeTab === 'manage-questions' && <><FaEdit /> Manage Questions</>}
             {activeTab === 'config' && <><FaCog /> Configuration</>}
             {activeTab === 'results' && <><FaChartBar /> Results</>}
+            {activeTab === 'question-detail' && <><FaEye /> Question Details</>}
           </h1>
           
           <div className="top-bar-actions">
@@ -585,16 +840,16 @@ const AdminPanel = () => {
                 <h3><FaDatabase /> System Summary</h3>
                 <div className="summary-content">
                   <div className="summary-item">
-                    <span>Active Categories:</span>
-                    <span>{new Set(questions.map(q => q.category)).size}</span>
-                  </div>
-                  <div className="summary-item">
                     <span>Questions in DB:</span>
                     <span>{questions.length}</span>
                   </div>
                   <div className="summary-item">
-                    <span>Last Updated:</span>
-                    <span>Just now</span>
+                    <span>Results in DB:</span>
+                    <span>{results.length}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span>Categories:</span>
+                    <span>{new Set(questions.map(q => q.category)).size}</span>
                   </div>
                 </div>
               </div>
@@ -617,36 +872,6 @@ const AdminPanel = () => {
                 </div>
               </div>
             </div>
-
-            {/* Category Progress */}
-            <div className="category-progress">
-              <h3><FaChartBar /> Category Progress (Target: 100 marks each)</h3>
-              <div className="progress-grid">
-                {categories.slice(0, 12).map(category => {
-                  const categoryInfo = getCategoryInfo(category.value || category);
-                  const percentage = Math.min((categoryInfo.totalMarks / 100) * 100, 100);
-                  
-                  return (
-                    <div key={category.value || category} className="progress-item">
-                      <div className="progress-header">
-                        <span className="progress-category">{categoryInfo.label}</span>
-                        <span className="progress-count">{categoryInfo.totalMarks}/100</span>
-                      </div>
-                      <div className="progress-bar">
-                        <div 
-                          className="progress-fill" 
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="progress-info">
-                        <span>{categoryInfo.questionCount} questions</span>
-                        <span>{Math.max(100 - categoryInfo.totalMarks, 0)} marks to go</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           </div>
         )}
 
@@ -655,8 +880,11 @@ const AdminPanel = () => {
           <div className="add-question">
             <div className="section-header">
               <h2><FaPlusCircle /> Add New Question to Database</h2>
-              <button onClick={() => setActiveTab('manage-questions')}>
-                <FaEye /> View Questions
+              <button 
+                className="btn-secondary"
+                onClick={() => setActiveTab('manage-questions')}
+              >
+                <FaEye /> View All Questions
               </button>
             </div>
             
@@ -670,17 +898,12 @@ const AdminPanel = () => {
                     required
                   >
                     <option value="">Select Category</option>
-                    {categories.map(category => {
-                      const categoryInfo = getCategoryInfo(category.value || category);
-                      const disabled = categoryInfo.isComplete;
-                      return (
-                        <option key={category.value || category} value={category.value || category} disabled={disabled}>
-                          {categoryInfo.label} ({categoryInfo.totalMarks}/100 marks)
-                        </option>
-                      );
-                    })}
+                    {categories.map(category => (
+                      <option key={category.value} value={category.value}>
+                        {category.label}
+                      </option>
+                    ))}
                   </select>
-                  <small>Maximum 100 marks per category</small>
                 </div>
                 
                 <div className="form-group">
@@ -766,11 +989,6 @@ const AdminPanel = () => {
                       <FaPlusCircle /> Add Option
                     </button>
                   )}
-                  
-                  <div className="option-help">
-                    <FaInfoCircle />
-                    <small>Select exactly one correct option. Minimum 2 options required.</small>
-                  </div>
                 </div>
               </div>
               
@@ -801,157 +1019,323 @@ const AdminPanel = () => {
                 </button>
               </div>
             </div>
-            
-            {/* Category Summary */}
-            <div className="category-summary">
-              <h3><FaDatabase /> Category Marks Summary</h3>
-              <div className="category-grid">
-                {categories.map(category => {
-                  const categoryInfo = getCategoryInfo(category.value || category);
-                  const percentage = Math.min((categoryInfo.totalMarks / 100) * 100, 100);
-                  const remaining = Math.max(100 - categoryInfo.totalMarks, 0);
-                  
-                  return (
-                    <div key={category.value || category} className={`category-item ${categoryInfo.isComplete ? 'complete' : ''}`}>
-                      <div className="category-header">
-                        <span className="category-name">{categoryInfo.label}</span>
-                        <span className="category-marks">{categoryInfo.totalMarks}/100</span>
-                      </div>
-                      <div className="category-bar">
-                        <div 
-                          className="category-fill"
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="category-footer">
-                        <span>{remaining} marks available</span>
-                        <span className={`status ${categoryInfo.isComplete ? 'complete' : 'incomplete'}`}>
-                          {categoryInfo.isComplete ? 'Complete' : 'Incomplete'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           </div>
         )}
 
         {/* Manage Questions Tab */}
         {activeTab === 'manage-questions' && (
-          <div className="manage-questions">
-            <div className="section-header">
-              <h2><FaEdit /> Manage Questions ({questions.length})</h2>
-              <div className="section-actions">
-                <button 
-                  className="btn-primary"
-                  onClick={() => setActiveTab('add-question')}
-                >
-                  <FaPlusCircle /> Add Question
-                </button>
-                <button 
-                  className="btn-secondary"
-                  onClick={loadAllData}
-                  disabled={loading}
-                >
-                  {loading ? <FaSpinner className="spinning" /> : <FaSync />} Refresh
-                </button>
-              </div>
-            </div>
-            
-            <div className="search-filter">
-              <div className="search-box">
-                <FaSearch />
-                <input
-                  type="text"
-                  placeholder="Search questions..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              
-              <div className="filter-dropdown">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="all">All Categories</option>
-                  {categories.map(category => (
-                    <option key={category.value || category} value={category.value || category}>
-                      {getCategoryInfo(category.value || category).label} ({questions.filter(q => q.category === (category.value || category)).length})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            
-            <div className="questions-list">
-              {questions
-                .filter(q => selectedCategory === 'all' || q.category === selectedCategory)
-                .filter(q => !searchTerm || q.questionText.toLowerCase().includes(searchTerm.toLowerCase()))
-                .map((question, index) => (
-                  <div key={question._id} className="question-card">
-                    <div className="question-header">
-                      <div className="question-tags">
-                        <span className="question-tag category">{question.category}</span>
-                        <span className="question-tag marks">{question.marks} marks</span>
-                        <span className={`question-tag difficulty ${question.difficulty}`}>
-                          {question.difficulty}
-                        </span>
-                      </div>
-                      <div className="question-actions">
-                        <button 
-                          className="delete-btn"
-                          onClick={() => handleDeleteQuestion(question._id)}
-                          disabled={loading}
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="question-text">
-                      <p>{question.questionText}</p>
-                    </div>
-                    
-                    <div className="options-preview">
-                      {question.options.map((opt, idx) => (
-                        <div key={idx} className={`option-preview ${opt.isCorrect ? 'correct' : ''}`}>
-                          <span>{opt.text}</span>
-                          {opt.isCorrect && <FaCheck className="correct-mark" />}
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="question-footer">
-                      <span className="created-date">
-                        Added: {formatDate(question.createdAt)}
-                      </span>
-                      <span className="question-id">
-                        ID: {question._id?.substring(0, 8)}...
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              
-              {questions.length === 0 && (
-                <div className="empty-state">
-                  <FaQuestionCircle className="empty-state-icon" />
-                  <h3>No Questions Found</h3>
-                  <p>Add your first question to get started</p>
+          <div className="manage-questions-container">
+            {/* Header Section */}
+            <div className="manage-header-section">
+              <div className="header-content">
+                <div className="header-title">
+                  <h1><FaEdit /> Manage Questions</h1>
+                  <span className="question-count-badge">
+                    {questions.length} Question{questions.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                
+                <div className="header-actions">
                   <button 
-                    className="btn-primary"
+                    className="btn-add-question"
                     onClick={() => setActiveTab('add-question')}
                   >
-                    <FaPlusCircle /> Add Question
+                    <FaPlusCircle /> Add New Question
                   </button>
+                  
+                  <button 
+                    className={`btn-refresh-questions ${loading ? 'loading' : ''}`}
+                    onClick={loadAllData}
+                    disabled={loading}
+                  >
+                    {loading ? <FaSpinner className="spinning" /> : <FaSync />}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="quick-stats">
+                <div className="stat-item-small">
+                  <div className="label">
+                    <FaQuestionCircle /> Total Questions
+                  </div>
+                  <div className="value">{questionStats.total}</div>
+                </div>
+                
+                <div className="stat-item-small">
+                  <div className="label">
+                    <FaListOl /> Categories
+                  </div>
+                  <div className="value">{questionStats.categories}</div>
+                </div>
+                
+                <div className="stat-item-small">
+                  <div className="label">
+                    <FaChartBar /> Easy Questions
+                  </div>
+                  <div className="value">{questionStats.easy}</div>
+                </div>
+                
+                <div className="stat-item-small">
+                  <div className="label">
+                    <FaClipboardCheck /> Total Marks
+                  </div>
+                  <div className="value">{questionStats.totalMarks}</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Main Content */}
+            <div className="manage-main-content">
+              {/* Search and Filter Section */}
+              <div className="search-filter-section">
+                <div className="search-container">
+                  <div className="search-wrapper">
+                    <FaSearch className="search-icon" />
+                    <input
+                      type="text"
+                      className="search-input"
+                      placeholder="Search questions by text, options, or category..."
+                      value={questionsSearchTerm}
+                      onChange={(e) => {
+                        setQuestionsSearchTerm(e.target.value);
+                        setQuestionsPage(1);
+                      }}
+                    />
+                    {questionsSearchTerm && (
+                      <button 
+                        className="clear-search-btn"
+                        onClick={() => setQuestionsSearchTerm('')}
+                      >
+                        <FaTimes />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="filter-controls">
+                  <div className="filter-group">
+                    <label className="filter-label">Category</label>
+                    <select
+                      className="filter-select"
+                      value={questionsSelectedCategory}
+                      onChange={(e) => {
+                        setQuestionsSelectedCategory(e.target.value);
+                        setQuestionsPage(1);
+                      }}
+                    >
+                      <option value="all">All Categories</option>
+                      {categories.map(category => (
+                        <option key={category.value} value={category.value}>
+                          {category.label} ({questions.filter(q => q.category === category.value).length})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="filter-group">
+                    <label className="filter-label">Difficulty</label>
+                    <div className="difficulty-filter">
+                      <button 
+                        className={`difficulty-btn ${questionsSelectedDifficulty === 'all' ? 'active' : ''}`}
+                        onClick={() => {
+                          setQuestionsSelectedDifficulty('all');
+                          setQuestionsPage(1);
+                        }}
+                      >
+                        All ({questions.length})
+                      </button>
+                      <button 
+                        className={`difficulty-btn easy ${questionsSelectedDifficulty === 'easy' ? 'active' : ''}`}
+                        onClick={() => {
+                          setQuestionsSelectedDifficulty('easy');
+                          setQuestionsPage(1);
+                        }}
+                      >
+                        Easy ({questionStats.easy})
+                      </button>
+                      <button 
+                        className={`difficulty-btn medium ${questionsSelectedDifficulty === 'medium' ? 'active' : ''}`}
+                        onClick={() => {
+                          setQuestionsSelectedDifficulty('medium');
+                          setQuestionsPage(1);
+                        }}
+                      >
+                        Medium ({questionStats.medium})
+                      </button>
+                      <button 
+                        className={`difficulty-btn hard ${questionsSelectedDifficulty === 'hard' ? 'active' : ''}`}
+                        onClick={() => {
+                          setQuestionsSelectedDifficulty('hard');
+                          setQuestionsPage(1);
+                        }}
+                      >
+                        Hard ({questionStats.hard})
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="filter-actions">
+                    <button 
+                      className="btn-clear-filters"
+                      onClick={() => {
+                        setQuestionsSearchTerm('');
+                        setQuestionsSelectedCategory('all');
+                        setQuestionsSelectedDifficulty('all');
+                        setQuestionsPage(1);
+                      }}
+                    >
+                      <FaTimes /> Clear Filters
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Results Info */}
+              <div className="results-info-bar">
+                <div className="results-info">
+                  <div className="results-count">
+                    Showing <strong>{getPaginatedQuestions().paginatedQuestions.length}</strong> of{' '}
+                    <strong>{questionStats.total}</strong> questions
+                  </div>
+                  {questionsSearchTerm && (
+                    <div className="search-indicator">
+                      <FaSearch /> Searching: "{questionsSearchTerm}"
+                    </div>
+                  )}
+                  {questionsSelectedCategory !== 'all' && (
+                    <div className="search-indicator">
+                      <FaFilter /> Category: {questionsSelectedCategory}
+                    </div>
+                  )}
+                  {questionsSelectedDifficulty !== 'all' && (
+                    <div className="search-indicator">
+                      <FaFilter /> Difficulty: {questionsSelectedDifficulty}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Questions Grid View */}
+              {loading ? (
+                <div className="loading-container">
+                  <div className="loading-spinner"></div>
+                  <div className="loading-text">Loading questions...</div>
+                </div>
+              ) : getPaginatedQuestions().paginatedQuestions.length === 0 ? (
+                <div className="empty-state-container">
+                  <FaQuestionCircle className="empty-state-icon" />
+                  <h2 className="empty-state-title">
+                    {questionsSearchTerm || questionsSelectedCategory !== 'all' || questionsSelectedDifficulty !== 'all'
+                      ? 'No matching questions found' 
+                      : 'No questions available'}
+                  </h2>
+                  <p className="empty-state-message">
+                    {questionsSearchTerm || questionsSelectedCategory !== 'all' || questionsSelectedDifficulty !== 'all'
+                      ? 'Try adjusting your search or filter criteria to find what you\'re looking for.'
+                      : 'Get started by adding your first question to the database.'}
+                  </p>
+                  <div className="empty-state-actions">
+                    <button 
+                      className="btn-add-first"
+                      onClick={() => setActiveTab('add-question')}
+                    >
+                      <FaPlusCircle /> Add Your First Question
+                    </button>
+                    {(questionsSearchTerm || questionsSelectedCategory !== 'all' || questionsSelectedDifficulty !== 'all') && (
+                      <button 
+                        className="btn-clear-search"
+                        onClick={() => {
+                          setQuestionsSearchTerm('');
+                          setQuestionsSelectedCategory('all');
+                          setQuestionsSelectedDifficulty('all');
+                        }}
+                      >
+                        <FaTimes /> Clear Search
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="questions-grid-view">
+                  {getPaginatedQuestions().paginatedQuestions.map((question, index) => 
+                    renderQuestionCard(question, index)
+                  )}
+                </div>
+              )}
+              
+              {/* Pagination */}
+              {getPaginatedQuestions().totalPages > 1 && (
+                <div className="pagination-container">
+                  <div className="pagination-info">
+                    Page {questionsPage} of {getPaginatedQuestions().totalPages} • 
+                    Showing {Math.min(questionsPerPage, getPaginatedQuestions().paginatedQuestions.length)} questions per page
+                  </div>
+                  
+                  <div className="pagination-controls">
+                    <button 
+                      className="pagination-btn"
+                      onClick={() => setQuestionsPage(prev => Math.max(1, prev - 1))}
+                      disabled={questionsPage === 1}
+                    >
+                      <FaTimes /> Previous
+                    </button>
+                    
+                    <div className="pagination-numbers">
+                      {Array.from({ length: Math.min(5, getPaginatedQuestions().totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (getPaginatedQuestions().totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (questionsPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (questionsPage >= getPaginatedQuestions().totalPages - 2) {
+                          pageNum = getPaginatedQuestions().totalPages - 4 + i;
+                        } else {
+                          pageNum = questionsPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            className={`page-number ${pageNum === questionsPage ? 'active' : ''}`}
+                            onClick={() => setQuestionsPage(pageNum)}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                      
+                      {getPaginatedQuestions().totalPages > 5 && questionsPage < getPaginatedQuestions().totalPages - 2 && (
+                        <>
+                          <span className="page-dots">...</span>
+                          <button
+                            className="page-number"
+                            onClick={() => setQuestionsPage(getPaginatedQuestions().totalPages)}
+                          >
+                            {getPaginatedQuestions().totalPages}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    
+                    <button 
+                      className="pagination-btn"
+                      onClick={() => setQuestionsPage(prev => Math.min(getPaginatedQuestions().totalPages, prev + 1))}
+                      disabled={questionsPage === getPaginatedQuestions().totalPages}
+                    >
+                      Next <FaTimes />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Results Tab - WITHOUT DELETE BUTTONS */}
+        {/* Question Detail Tab */}
+        {activeTab === 'question-detail' && <QuestionDetailView />}
+
+        {/* Results Tab */}
         {activeTab === 'results' && (
           <div className="results-page">
             <div className="section-header">
@@ -993,8 +1377,8 @@ const AdminPanel = () => {
                   >
                     <option value="all">All Categories</option>
                     {categories.map(category => (
-                      <option key={category.value || category} value={category.value || category}>
-                        {getCategoryInfo(category.value || category).label} ({results.filter(r => r.category === (category.value || category)).length})
+                      <option key={category.value} value={category.value}>
+                        {category.label} ({results.filter(r => r.category === category.value).length})
                       </option>
                     ))}
                   </select>
@@ -1007,27 +1391,23 @@ const AdminPanel = () => {
                 <thead>
                   <tr>
                     <th onClick={() => requestSort('name')}>
-                      <span>Student</span>
-                      {getSortIcon('name')}
+                      <span>Student {getSortIcon('name')}</span>
                     </th>
                     <th><FaIdCard /> Roll No</th>
                     <th>Category</th>
                     <th>Score</th>
                     <th onClick={() => requestSort('percentage')}>
-                      <span>Percentage</span>
-                      {getSortIcon('percentage')}
+                      <span>Percentage {getSortIcon('percentage')}</span>
                     </th>
                     <th>Status</th>
-                    <th onClick={() => requestSort('submittedAt')}>
-                      <span><FaHistory /> Date</span>
-                      {getSortIcon('submittedAt')}
-                    </th>
+                    <th><FaHistory /> Date</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredResults.length === 0 ? (
                     <tr>
-                      <td colSpan="7">
+                      <td colSpan="8">
                         <div className="empty-state">
                           <FaSearch className="empty-state-icon" />
                           <h3>No Results Found</h3>
@@ -1069,6 +1449,18 @@ const AdminPanel = () => {
                             </span>
                           </td>
                           <td>{formatDate(result.submittedAt)}</td>
+                          <td>
+                            <div className="result-actions">
+                              <button 
+                                className="delete-result-btn"
+                                onClick={() => handleDeleteResult(result._id, result.name || 'Student')}
+                                disabled={loading}
+                                title="Delete this result"
+                              >
+                                <FaTrash />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })
@@ -1077,26 +1469,26 @@ const AdminPanel = () => {
               </table>
             </div>
             
+            {/* Results Summary */}
             <div className="results-summary">
-              <div className="summary-card">
-                <h3><FaChartBar /> Results Summary</h3>
-                <div className="summary-stats">
-                  <div className="stat-item">
-                    <span className="stat-value">{results.length}</span>
-                    <span className="stat-label">Total Results</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value">{results.filter(r => r.passed || (parseFloat(r.percentage) >= config.passingPercentage)).length}</span>
-                    <span className="stat-label">Passed</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value">{results.filter(r => !r.passed && (parseFloat(r.percentage) < config.passingPercentage)).length}</span>
-                    <span className="stat-label">Failed</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value">{config.passingPercentage}%</span>
-                    <span className="stat-label">Passing %</span>
-                  </div>
+              <div className="summary-stats">
+                <div className="stat-item">
+                  <span>Total Results:</span>
+                  <strong>{results.length}</strong>
+                </div>
+                <div className="stat-item">
+                  <span>Passed:</span>
+                  <strong>{results.filter(r => parseFloat(r.percentage) >= config.passingPercentage).length}</strong>
+                </div>
+                <div className="stat-item">
+                  <span>Failed:</span>
+                  <strong>{results.filter(r => parseFloat(r.percentage) < config.passingPercentage).length}</strong>
+                </div>
+                <div className="stat-item">
+                  <span>Pass Rate:</span>
+                  <strong>{results.length > 0 
+                    ? ((results.filter(r => parseFloat(r.percentage) >= config.passingPercentage).length / results.length) * 100).toFixed(1)
+                    : 0}%</strong>
                 </div>
               </div>
             </div>
@@ -1180,33 +1572,6 @@ const AdminPanel = () => {
                     <span className="config-value">{config.totalQuestions} questions</span>
                   </div>
                 </div>
-              </div>
-            </div>
-            
-            <div className="config-preview">
-              <h3><FaEye /> Configuration Preview</h3>
-              <div className="preview-card">
-                <div className="preview-item">
-                  <span>Quiz Duration:</span>
-                  <span className="preview-value">{config.quizTime} minutes</span>
-                </div>
-                <div className="preview-item">
-                  <span>Passing Percentage:</span>
-                  <span className="preview-value">{config.passingPercentage}%</span>
-                </div>
-                <div className="preview-item">
-                  <span>Total Questions:</span>
-                  <span className="preview-value">{config.totalQuestions}</span>
-                </div>
-                <div className="preview-item">
-                  <span>Current System:</span>
-                  <span className="preview-value status-active">Active</span>
-                </div>
-              </div>
-              
-              <div className="config-notice">
-                <FaInfoCircle />
-                <p>Changes will take effect immediately after saving. Existing active quizzes will continue with old settings.</p>
               </div>
             </div>
           </div>

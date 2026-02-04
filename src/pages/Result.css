@@ -4467,3 +4467,214 @@ body {
     border: 2px solid black !important;
   }
 }
+/* =====================
+   Configuration Info Styles
+   ===================== */
+.config-info-section {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  padding: 12px 24px;
+  border-bottom: 2px solid #0ea5e9;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.config-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0369a1;
+}
+
+.config-label {
+  background: #0ea5e9;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  letter-spacing: 0.5px;
+}
+
+.config-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #1e40af;
+  background: white;
+  padding: 8px 20px;
+  border-radius: 10px;
+  border: 2px solid #0ea5e9;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+}
+
+.config-source {
+  font-size: 0.8rem;
+  color: #475569;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Configuration Warning Banner */
+.config-warning-banner {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 2px solid #f59e0b;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.warning-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 0.95rem;
+  color: #92400e;
+  font-weight: 600;
+}
+
+.reload-config-btn {
+  background: #f59e0b;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.reload-config-btn:hover {
+  background: #d97706;
+  transform: translateY(-2px);
+}
+
+/* Circular Progress - Passing Marker */
+.circular-passing-marker {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 20px;
+  height: 140px;
+  transform-origin: bottom center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.passing-marker-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3b82f6;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 2px solid white;
+  box-shadow: 
+    0 0 15px rgba(59, 130, 246, 0.8),
+    0 0 25px rgba(59, 130, 246, 0.4);
+  animation: pulse-blue 1.5s infinite;
+}
+
+@keyframes pulse-blue {
+  0%, 100% {
+    box-shadow: 
+      0 0 15px rgba(59, 130, 246, 0.8),
+      0 0 25px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px rgba(59, 130, 246, 1),
+      0 0 35px rgba(59, 130, 246, 0.6);
+  }
+}
+
+.passing-marker-label {
+  position: absolute;
+  top: -45px;
+  left: -50px;
+  width: 100px;
+  text-align: center;
+  transform: rotate(-90deg);
+}
+
+.passing-marker-text {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-block;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  border: 2px solid #93c5fd;
+  white-space: nowrap;
+}
+
+/* Loading State with Config Error */
+.loading .config-error {
+  margin-top: 15px;
+  color: #dc2626;
+  font-size: 0.9rem;
+  background: #fee2e2;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #fca5a5;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Responsive Styles for Config Info */
+@media (max-width: 768px) {
+  .config-info {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .config-value {
+    font-size: 1rem;
+    padding: 6px 16px;
+  }
+  
+  .config-source {
+    font-size: 0.75rem;
+  }
+  
+  .warning-content {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .passing-marker-label {
+    top: -40px;
+    left: -45px;
+    width: 90px;
+  }
+  
+  .passing-marker-text {
+    font-size: 0.75rem;
+    padding: 5px 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .config-info-section,
+  .config-warning-banner {
+    padding: 10px 16px;
+  }
+  
+  .config-label {
+    padding: 4px 12px;
+    font-size: 0.8rem;
+  }
+  
+  .circular-passing-marker {
+    height: 120px;
+  }
+}

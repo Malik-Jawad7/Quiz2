@@ -11,6 +11,7 @@ const Result = () => {
   const [userData, setUserData] = useState(null);
   const [passingPercentage, setPassingPercentage] = useState(40);
   const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState(null);
 
   // Category mapping function
   const getCategoryFullName = (categoryCode) => {
@@ -105,40 +106,56 @@ const Result = () => {
     }
   };
 
-  useEffect(() => {
-    console.log('🎯 Result Page Loaded');
-    
-    const fetchConfig = async () => {
-      try {
-        const response = await getConfig();
-        if (response.data.success) {
-          const configData = response.data.config;
-          setPassingPercentage(configData.passingPercentage || 40);
+  // Fetch configuration from API
+  const fetchConfiguration = async () => {
+    try {
+      const response = await getConfig();
+      
+      if (response.success) {
+        const configData = response.config;
+        
+        // Set passing percentage from admin panel
+        if (configData.passingPercentage) {
+          setPassingPercentage(configData.passingPercentage);
+          
+          // Save to localStorage for offline use
+          localStorage.setItem('quizPassingPercentage', configData.passingPercentage.toString());
         }
-      } catch (error) {
-        console.error('Error fetching config:', error);
-      } finally {
-        setConfigLoading(false);
+        
+        setConfigError(null);
+      } else {
+        fallbackToLocalStorage();
       }
-    };
+    } catch (error) {
+      setConfigError('Unable to fetch latest configuration.');
+      fallbackToLocalStorage();
+    } finally {
+      setConfigLoading(false);
+    }
+  };
 
-    fetchConfig();
+  // Fallback to localStorage if API fails
+  const fallbackToLocalStorage = () => {
+    const savedPercentage = localStorage.getItem('quizPassingPercentage');
+    if (savedPercentage) {
+      setPassingPercentage(parseInt(savedPercentage));
+    } else {
+      setPassingPercentage(40);
+    }
+  };
+
+  useEffect(() => {
+    // Step 1: Fetch configuration from API
+    fetchConfiguration();
     
+    // Step 2: Load result data from localStorage
     const storedResult = localStorage.getItem('quizResult');
     const storedLastResult = localStorage.getItem('lastQuizResult');
     const storedUserData = localStorage.getItem('userData');
-    
-    console.log('Debug - LocalStorage Data:', {
-      storedResult: !!storedResult,
-      storedLastResult: !!storedLastResult,
-      storedUserData: !!storedUserData,
-      category: localStorage.getItem('quizCategory')
-    });
 
     if (storedResult) {
       try {
         const parsedResult = JSON.parse(storedResult);
-        console.log('Parsed Result:', parsedResult);
         setResult(parsedResult);
       } catch (error) {
         console.error('Error parsing quizResult:', error);
@@ -146,7 +163,6 @@ const Result = () => {
     } else if (storedLastResult) {
       try {
         const parsedResult = JSON.parse(storedLastResult);
-        console.log('Parsed Last Result:', parsedResult);
         setResult(parsedResult);
         localStorage.setItem('quizResult', storedLastResult);
       } catch (error) {
@@ -155,7 +171,6 @@ const Result = () => {
     } else if (storedUserData) {
       try {
         const user = JSON.parse(storedUserData);
-        console.log('Creating mock result for:', user);
         const mockResult = {
           _id: 'mock_result_' + Date.now(),
           rollNumber: user.rollNumber,
@@ -169,10 +184,9 @@ const Result = () => {
           totalQuestions: 15,
           attempted: 15,
           submittedAt: new Date().toISOString(),
-          passingPercentage: 40,
+          passingPercentage: passingPercentage,
           passed: true
         };
-        console.log('Mock Result:', mockResult);
         setResult(mockResult);
         localStorage.setItem('quizResult', JSON.stringify(mockResult));
       } catch (error) {
@@ -183,7 +197,6 @@ const Result = () => {
     if (storedUserData) {
       try {
         const parsedUserData = JSON.parse(storedUserData);
-        console.log('User Data:', parsedUserData);
         setUserData(parsedUserData);
       } catch (error) {
         console.error('Error parsing user data:', error);
@@ -201,10 +214,12 @@ const Result = () => {
     navigate('/register');
   };
 
+  // Calculate pass/fail status based on admin panel setting
   const calculatePassStatus = () => {
     if (!result) return { passed: false, percentage: 0 };
     
     const percentage = parseFloat(result.percentage) || 0;
+    // Use the passing percentage from admin panel
     const passed = percentage >= passingPercentage;
     
     return { passed, percentage };
@@ -320,7 +335,7 @@ const Result = () => {
             <p className="status-message">
               {passed 
                 ? `You scored ${percentage.toFixed(2)}% and passed the assessment.`
-                : `You scored ${percentage.toFixed(2)}%. Minimum required: ${passingPercentage}%.`
+                : `You scored ${percentage.toFixed(2)}%. Try again to improve your score.`
               }
             </p>
           </div>
@@ -399,12 +414,6 @@ const Result = () => {
                 </div>
                 
                 <div className="indicator-item">
-                  <div className="indicator-dot passing-dot"></div>
-                  <div className="indicator-label">Passing Score</div>
-                  <div className="indicator-value">{passingPercentage}%</div>
-                </div>
-                
-                <div className="indicator-item">
                   <div className="indicator-dot result-dot"></div>
                   <div className="indicator-label">Result</div>
                   <div className="indicator-value">
@@ -457,8 +466,8 @@ const Result = () => {
             </div>
             
             <div className="stat-item">
-              <div className="stat-label">Passing Criteria</div>
-              <div className="stat-value">{passingPercentage}%</div>
+              <div className="stat-label">Your Score</div>
+              <div className="stat-value">{percentage.toFixed(1)}%</div>
             </div>
             
             <div className="stat-item">
@@ -498,7 +507,7 @@ const Result = () => {
             
             <div className="footer-center-info">
               <p className="footer-text">
-                Assessment completed successfully | Passing criteria: {passingPercentage}%
+                Assessment completed successfully
               </p>
               <p className="footer-subtext">
                 Note: This result is stored locally. For official record, please save or print.
