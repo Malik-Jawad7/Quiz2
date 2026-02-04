@@ -37,7 +37,6 @@ import {
   FaDatabase,
   FaSpinner,
   FaEye,
-  FaEyeSlash,
   FaFilter,
   FaTag,
   FaArrowLeft,
@@ -63,37 +62,21 @@ const AdminPanel = () => {
     totalQuestions: 50
   });
 
-  // Static categories
-  const staticCategories = [
+  // Categories - فقط categories کی list
+  const defaultCategories = [
     { value: 'html', label: 'HTML' },
     { value: 'css', label: 'CSS' },
     { value: 'javascript', label: 'JavaScript' },
     { value: 'react', label: 'React.js' },
-    { value: 'nextjs', label: 'Next.js' },
-    { value: 'vue', label: 'Vue.js' },
-    { value: 'angular', label: 'Angular' },
-    { value: 'typescript', label: 'TypeScript' },
     { value: 'node', label: 'Node.js' },
-    { value: 'express', label: 'Express.js' },
     { value: 'python', label: 'Python' },
-    { value: 'django', label: 'Django' },
-    { value: 'flask', label: 'Flask' },
     { value: 'java', label: 'Java' },
-    { value: 'spring', label: 'Spring Boot' },
-    { value: 'php', label: 'PHP' },
-    { value: 'laravel', label: 'Laravel' },
     { value: 'mongodb', label: 'MongoDB' },
     { value: 'mysql', label: 'MySQL' },
-    { value: 'postgresql', label: 'PostgreSQL' },
-    { value: 'mern', label: 'MERN Stack' },
-    { value: 'graphql', label: 'GraphQL' },
-    { value: 'git', label: 'Git' },
     { value: 'docker', label: 'Docker' },
     { value: 'aws', label: 'AWS' },
-    { value: 'jenkins', label: 'Jenkins' },
-    { value: 'kubernetes', label: 'Kubernetes' },
-    { value: 'linux', label: 'Linux' },
-    { value: 'ansible', label: 'Ansible' }
+    { value: 'git', label: 'Git' },
+    { value: 'linux', label: 'Linux' }
   ];
 
   // Add Question State
@@ -123,7 +106,7 @@ const AdminPanel = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   
   // Categories state
-  const [categories, setCategories] = useState(staticCategories);
+  const [categories, setCategories] = useState(defaultCategories);
 
   // Manage Questions states
   const [detailedViewQuestion, setDetailedViewQuestion] = useState(null);
@@ -203,7 +186,7 @@ const AdminPanel = () => {
     setFilteredResults(filtered);
   }, [results, searchTerm, selectedCategory, sortConfig]);
 
-  // Load all data from API
+  // Load all data from API - صرف Database سے
   const loadAllData = async () => {
     setLoading(true);
     try {
@@ -211,7 +194,6 @@ const AdminPanel = () => {
       const configResponse = await apiService.getConfig();
       if (configResponse.success) {
         setConfig(configResponse.config);
-        // Save to localStorage for quiz
         localStorage.setItem('quizConfig', JSON.stringify(configResponse.config));
       }
 
@@ -221,7 +203,7 @@ const AdminPanel = () => {
         setStats(statsResponse.stats);
       }
       
-      // Load questions
+      // Load questions - Database سے
       const questionsResponse = await apiService.getAllQuestions();
       if (questionsResponse.success) {
         setQuestions(questionsResponse.questions || []);
@@ -234,7 +216,7 @@ const AdminPanel = () => {
         setFilteredResults(resultsResponse.results || []);
       }
       
-      showNotification('Data loaded successfully', 'success');
+      showNotification('Data loaded successfully from database', 'success');
     } catch (error) {
       console.error('Error loading data:', error);
       showNotification('Error loading data. Please check connection.', 'error');
@@ -276,7 +258,7 @@ const AdminPanel = () => {
     setActiveTab('question-detail');
   };
 
-  // Add new question
+  // Add new question - Database میں
   const handleAddQuestion = async () => {
     // Validation
     if (!newQuestion.category.trim()) {
@@ -337,7 +319,7 @@ const AdminPanel = () => {
           difficulty: 'medium'
         });
 
-        showNotification('Question added successfully to MongoDB!', 'success');
+        showNotification('Question added successfully to database!', 'success');
       } else {
         showNotification(response.message || 'Failed to add question', 'error');
       }
@@ -503,7 +485,7 @@ const AdminPanel = () => {
     });
   };
 
-  // Get filtered and sorted questions
+  // Get filtered and sorted questions - Database سے
   const getFilteredQuestions = () => {
     let filtered = [...questions];
     

@@ -27,6 +27,25 @@ api.interceptors.request.use(
   }
 );
 
+// Response Interceptor
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    console.error('Response Error:', error.response?.status, error.message);
+    
+    // Handle 401 unauthorized
+    if (error.response?.status === 401) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      window.location.href = '/admin/login';
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
 // Test server connection
 export const testServerConnection = async () => {
   try {
@@ -60,24 +79,9 @@ export const adminLogin = async (credentials) => {
   } catch (error) {
     console.error('Login error:', error);
     
-    // Development fallback
-    if (credentials.username === 'admin' && credentials.password === 'admin123') {
-      const devToken = 'dev_token_' + Date.now();
-      localStorage.setItem('adminToken', devToken);
-      localStorage.setItem('adminUser', JSON.stringify({
-        username: 'admin',
-        role: 'superadmin'
-      }));
-      
-      return {
-        success: true,
-        message: 'Login successful (Development Mode)',
-        token: devToken,
-        user: {
-          username: 'admin',
-          role: 'superadmin'
-        }
-      };
+    // Show specific error message
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
     }
     
     throw error;
@@ -118,35 +122,18 @@ export const getDashboardStats = async () => {
     return response.data;
   } catch (error) {
     console.error('Dashboard error:', error);
-    return {
-      success: true,
-      stats: {
-        totalStudents: 0,
-        totalQuestions: 0,
-        totalAttempts: 0,
-        averageScore: 0,
-        passRate: 0,
-        todayAttempts: 0,
-        quizTime: 30,
-        passingPercentage: 40
-      },
-      message: 'Using fallback data'
-    };
+    throw error;
   }
 };
 
 // Get all questions
-export const getAllQuestions = async () => {
+export const getAllQuestions = async (category = 'all') => {
   try {
-    const response = await api.get('/admin/questions');
+    const response = await api.get(`/admin/questions?category=${category}`);
     return response.data;
   } catch (error) {
     console.error('Get questions error:', error);
-    return {
-      success: true,
-      questions: [],
-      count: 0
-    };
+    throw error;
   }
 };
 
@@ -191,11 +178,7 @@ export const getResults = async () => {
     return response.data;
   } catch (error) {
     console.error('Get results error:', error);
-    return {
-      success: true,
-      results: [],
-      count: 0
-    };
+    throw error;
   }
 };
 
@@ -228,6 +211,8 @@ export const getConfig = async () => {
     return response.data;
   } catch (error) {
     console.error('Get config error:', error);
+    
+    // Return default config if API fails
     return {
       success: true,
       config: {
@@ -257,6 +242,8 @@ export const getCategories = async () => {
     return response.data;
   } catch (error) {
     console.error('Get categories error:', error);
+    
+    // Return default categories if API fails
     return {
       success: true,
       categories: []
@@ -264,7 +251,7 @@ export const getCategories = async () => {
   }
 };
 
-// Get quiz questions - NO STATIC QUESTIONS
+// Get quiz questions
 export const getQuizQuestions = async (category) => {
   try {
     console.log('Fetching questions for category:', category);
@@ -283,6 +270,12 @@ export const getQuizQuestions = async (category) => {
     return response.data;
   } catch (error) {
     console.error('Get quiz questions error:', error);
+    
+    // If it's a 404 error, throw a specific message
+    if (error.response?.status === 404) {
+      throw new Error('No questions available for this category. Please ask administrator to add questions first.');
+    }
+    
     throw error;
   }
 };
@@ -294,36 +287,37 @@ export const submitQuiz = async (quizData) => {
     return response.data;
   } catch (error) {
     console.error('Submit quiz error:', error);
-    
-    // Still return success for offline mode
-    return {
-      success: true,
-      message: 'Quiz submitted (offline mode)',
-      result: quizData
-    };
+    throw error;
   }
 };
 
 // Register user
 export const registerUser = async (userData) => {
   try {
-    // For development, just return success
-    return {
-      data: {
-        success: true,
-        message: 'User registered successfully',
-        user: userData
-      }
-    };
+    console.log('Registering user:', userData);
+    
+    const response = await api.post('/register', userData);
+    return response.data;
   } catch (error) {
     console.error('Register error:', error);
-    return {
-      data: {
-        success: true,
-        message: 'User registered (offline mode)',
-        user: userData
-      }
-    };
+    
+    // Show specific error message
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    
+    throw error;
+  }
+};
+
+// Get registrations (for admin)
+export const getRegistrations = async () => {
+  try {
+    const response = await api.get('/admin/registrations');
+    return response.data;
+  } catch (error) {
+    console.error('Get registrations error:', error);
+    throw error;
   }
 };
 
@@ -367,6 +361,7 @@ const apiService = {
   submitQuiz,
   initDatabase,
   registerUser,
+  getRegistrations,
   adminLogout
 };
 

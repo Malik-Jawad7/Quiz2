@@ -295,8 +295,10 @@ const Register = () => {
   const [configSource, setConfigSource] = useState('default');
   const [notification, setNotification] = useState(null);
   const [isHovering, setIsHovering] = useState(null);
+  const [serverStatus, setServerStatus] = useState('checking');
 
   useEffect(() => {
+    checkServerConnection();
     loadConfig();
     loadAPICategories();
     
@@ -312,6 +314,21 @@ const Register = () => {
     };
   }, []);
 
+  const checkServerConnection = async () => {
+    try {
+      // Try to fetch health endpoint
+      const response = await fetch('http://localhost:5000/api/health');
+      if (response.ok) {
+        setServerStatus('connected');
+      } else {
+        setServerStatus('disconnected');
+      }
+    } catch (error) {
+      setServerStatus('disconnected');
+      console.log('Server is not running, will work in offline mode');
+    }
+  };
+
   const loadConfig = async () => {
     try {
       // First try to load from localStorage (fastest)
@@ -322,17 +339,20 @@ const Register = () => {
         setConfigSource('localStorage');
       }
       
-      // Then try API for latest config
-      const response = await getConfig();
-      if (response.data?.success && response.data.config) {
-        const apiConfig = response.data.config;
-        setConfig(apiConfig);
-        setConfigSource('api');
-        
-        // Save to localStorage for future use
-        localStorage.setItem('quizConfig', JSON.stringify(apiConfig));
+      // Then try API for latest config if server is connected
+      if (serverStatus === 'connected') {
+        const response = await getConfig();
+        if (response.success && response.config) {
+          const apiConfig = response.config;
+          setConfig(apiConfig);
+          setConfigSource('api');
+          
+          // Save to localStorage for future use
+          localStorage.setItem('quizConfig', JSON.stringify(apiConfig));
+        }
       }
     } catch (error) {
+      console.log('Config load error:', error);
       // If API fails and no localStorage, use defaults
       if (!localStorage.getItem('quizConfig')) {
         setConfigSource('default');
@@ -342,30 +362,35 @@ const Register = () => {
 
   const loadAPICategories = async () => {
     try {
-      const response = await getCategories();
-      if (response.data?.success && response.data.categories) {
-        setApiCategories(response.data.categories);
-        
-        // Merge API categories with defaults
-        const mergedCategories = [...defaultCategories];
-        response.data.categories.forEach(apiCat => {
-          if (!mergedCategories.find(c => c.value === apiCat.value)) {
-            mergedCategories.push({
-              value: apiCat.value,
-              label: apiCat.label || apiCat.value,
-              logo: apiCat.logo || ShamsiLogo,
-              description: apiCat.description || apiCat.label || apiCat.value,
-              available: true,
-              type: apiCat.type || 'general'
-            });
-          }
-        });
-        
-        setCategories(mergedCategories);
+      // Only load from API if server is connected
+      if (serverStatus === 'connected') {
+        const response = await getCategories();
+        if (response.success && response.categories) {
+          setApiCategories(response.categories);
+          
+          // Merge API categories with defaults
+          const mergedCategories = [...defaultCategories];
+          response.categories.forEach(apiCat => {
+            if (!mergedCategories.find(c => c.value === apiCat.value)) {
+              mergedCategories.push({
+                value: apiCat.value,
+                label: apiCat.label || apiCat.value,
+                logo: apiCat.logo || ShamsiLogo,
+                description: apiCat.description || apiCat.label || apiCat.value,
+                available: true,
+                type: apiCat.type || 'general'
+              });
+            }
+          });
+          
+          setCategories(mergedCategories);
+        }
       } else {
+        // Use default categories if server is disconnected
         setCategories([...defaultCategories]);
       }
     } catch (error) {
+      console.log('Categories load error:', error);
       setCategories([...defaultCategories]);
     }
   };
@@ -393,6 +418,16 @@ const Register = () => {
       return;
     }
 
+    if (formData.rollNumber.length < 3 || formData.rollNumber.length > 10) {
+      showNotification('Roll number should be between 3 and 10 digits', 'error');
+      return;
+    }
+
+    if (formData.name.length < 3) {
+      showNotification('Name should be at least 3 characters long', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
       const rollNumberToSend = `SI-${formData.rollNumber}`;
@@ -401,37 +436,114 @@ const Register = () => {
         rollNumber: rollNumberToSend
       };
       
-      const response = await registerUser(registrationData);
+      console.log('Attempting registration with:', registrationData);
       
-      if (response.data.success) {
-        // Save config to localStorage for quiz and result pages
-        localStorage.setItem('quizConfig', JSON.stringify(config));
-        localStorage.setItem('userData', JSON.stringify(formData));
-        localStorage.setItem('quizCategory', formData.category);
-        localStorage.setItem('quizRollNumber', rollNumberToSend);
-        localStorage.setItem('quizPassingPercentage', config.passingPercentage.toString());
-        localStorage.setItem('quizTime', config.quizTime.toString());
-        localStorage.setItem('totalQuestions', config.totalQuestions.toString());
+      // Check if server is connected
+      if (serverStatus === 'connected') {
+        const response = await registerUser(registrationData);
         
-        const categoryInfo = categories.find(c => c.value === formData.category);
-        if (categoryInfo) {
-          localStorage.setItem('categoryInfo', JSON.stringify(categoryInfo));
+        if (response.success) {
+          handleSuccessfulRegistration(registrationData, response.message);
+        } else {
+          showNotification(response.message || 'Registration failed', 'error');
         }
-        
-        showNotification('Registration successful! Redirecting to quiz...', 'success');
-        
-        setTimeout(() => {
-          navigate('/quiz');
-        }, 1500);
       } else {
-        showNotification('Registration failed: ' + response.data.message, 'error');
+        // Offline mode - save to localStorage only
+        console.log('Server offline, saving to localStorage');
+        handleOfflineRegistration(registrationData);
       }
+      
     } catch (error) {
-      const errorMessage = error.response?.data?.message || error.message || 'Registration failed';
+      console.error('Registration error details:', error);
+      
+      // Extract error message properly
+      let errorMessage = 'Registration failed';
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        errorMessage = error.response.data?.message || 
+                      error.response.data?.error || 
+                      `Server error: ${error.response.status}`;
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage = 'No response from server. Please check if backend is running on port 5000.';
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        errorMessage = error.message || 'Registration failed';
+      }
+      
       showNotification('Error: ' + errorMessage, 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSuccessfulRegistration = (registrationData, message) => {
+    // Save config to localStorage for quiz and result pages
+    localStorage.setItem('quizConfig', JSON.stringify(config));
+    localStorage.setItem('userData', JSON.stringify({
+      name: registrationData.name,
+      rollNumber: registrationData.rollNumber,
+      category: registrationData.category
+    }));
+    localStorage.setItem('quizCategory', registrationData.category);
+    localStorage.setItem('quizRollNumber', registrationData.rollNumber);
+    localStorage.setItem('quizPassingPercentage', config.passingPercentage.toString());
+    localStorage.setItem('quizTime', config.quizTime.toString());
+    localStorage.setItem('totalQuestions', config.totalQuestions.toString());
+    
+    const categoryInfo = categories.find(c => c.value === registrationData.category);
+    if (categoryInfo) {
+      localStorage.setItem('categoryInfo', JSON.stringify(categoryInfo));
+    }
+    
+    // Set quiz active flag
+    localStorage.setItem('quizActive', 'true');
+    
+    showNotification(message || 'Registration successful! Redirecting to quiz...', 'success');
+    
+    setTimeout(() => {
+      navigate('/quiz');
+    }, 1500);
+  };
+
+  const handleOfflineRegistration = (registrationData) => {
+    // Save to localStorage for offline mode
+    const offlineData = {
+      ...registrationData,
+      offlineMode: true,
+      registeredAt: new Date().toISOString()
+    };
+    
+    // Save to localStorage
+    localStorage.setItem('offlineRegistration', JSON.stringify(offlineData));
+    localStorage.setItem('quizConfig', JSON.stringify(config));
+    localStorage.setItem('userData', JSON.stringify({
+      name: registrationData.name,
+      rollNumber: registrationData.rollNumber,
+      category: registrationData.category,
+      offlineMode: true
+    }));
+    localStorage.setItem('quizCategory', registrationData.category);
+    localStorage.setItem('quizRollNumber', registrationData.rollNumber);
+    localStorage.setItem('quizPassingPercentage', config.passingPercentage.toString());
+    localStorage.setItem('quizTime', config.quizTime.toString());
+    localStorage.setItem('totalQuestions', config.totalQuestions.toString());
+    
+    const categoryInfo = categories.find(c => c.value === registrationData.category);
+    if (categoryInfo) {
+      localStorage.setItem('categoryInfo', JSON.stringify(categoryInfo));
+    }
+    
+    // Set quiz active flag
+    localStorage.setItem('quizActive', 'true');
+    
+    showNotification('Registration saved offline. Starting quiz...', 'warning');
+    
+    setTimeout(() => {
+      navigate('/quiz');
+    }, 1500);
   };
 
   const handleLogoError = (e, category) => {
@@ -502,6 +614,24 @@ const Register = () => {
         </div>
       )}
       
+      {/* Server Status Indicator */}
+      <div className={`server-status ${serverStatus}`}>
+        <span className="status-dot"></span>
+        <span className="status-text">
+          {serverStatus === 'connected' ? 'Server Connected' : 
+           serverStatus === 'disconnected' ? 'Working Offline' : 'Checking Connection...'}
+        </span>
+        {serverStatus === 'disconnected' && (
+          <button 
+            className="retry-btn"
+            onClick={checkServerConnection}
+            disabled={loading}
+          >
+            Retry
+          </button>
+        )}
+      </div>
+      
       <div className="register-card">
         <div className="header-section">
           <div className="logo">
@@ -535,7 +665,11 @@ const Register = () => {
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 required
                 disabled={loading}
+                minLength="3"
               />
+              <div className="input-hint">
+                Minimum 3 characters
+              </div>
             </div>
 
             <div className="form-group">
@@ -553,9 +687,11 @@ const Register = () => {
                 }}
                 required
                 disabled={loading}
+                minLength="3"
+                maxLength="10"
               />
               <div className="input-hint">
-                Enter numbers only (e.g., 12345)
+                Enter numbers only (3-10 digits)
               </div>
             </div>
           </div>
@@ -573,6 +709,7 @@ const Register = () => {
                   type="button"
                   className={`type-btn ${selectedType === type.value ? 'active' : ''}`}
                   onClick={() => setSelectedType(type.value)}
+                  disabled={loading}
                 >
                   <span className="type-icon">{type.icon}</span>
                   {type.label}
@@ -765,6 +902,11 @@ const Register = () => {
               <div className="assessment-note">
                 <p>
                   <FaExclamationTriangle /> <strong>Important:</strong> The quiz will automatically submit when time runs out.
+                  {serverStatus === 'disconnected' && (
+                    <span style={{color: '#e74c3c', fontWeight: 'bold'}}>
+                      {' '}(Working in offline mode)
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -782,10 +924,15 @@ const Register = () => {
                   <FaSpinner className="spinning" />
                   Registering...
                 </>
-              ) : (
+              ) : serverStatus === 'connected' ? (
                 <>
                   <FaRocket />
                   Start Assessment
+                </>
+              ) : (
+                <>
+                  <FaRocket />
+                  Start Offline Assessment
                 </>
               )}
             </button>
