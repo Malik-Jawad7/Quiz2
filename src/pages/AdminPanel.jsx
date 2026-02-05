@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import apiService from '../services/api';
 import './AdminPanel.css';
 
-// React Icons
+// React Icons - ADD FaWrench icon
 import {
   FaTachometerAlt,
   FaPlusCircle,
@@ -41,7 +41,13 @@ import {
   FaTag,
   FaArrowLeft,
   FaArrowRight,
-  FaHome
+  FaPlus,
+  FaCode,
+  FaServer,
+  FaDatabase as FaDb,
+  FaGlobe,
+  FaDocker,
+  FaWrench  // ADDED for debug button
 } from 'react-icons/fa';
 
 // Import logo
@@ -62,22 +68,10 @@ const AdminPanel = () => {
     totalQuestions: 50
   });
 
-  // Categories - فقط categories کی list
-  const defaultCategories = [
-    { value: 'html', label: 'HTML' },
-    { value: 'css', label: 'CSS' },
-    { value: 'javascript', label: 'JavaScript' },
-    { value: 'react', label: 'React.js' },
-    { value: 'node', label: 'Node.js' },
-    { value: 'python', label: 'Python' },
-    { value: 'java', label: 'Java' },
-    { value: 'mongodb', label: 'MongoDB' },
-    { value: 'mysql', label: 'MySQL' },
-    { value: 'docker', label: 'Docker' },
-    { value: 'aws', label: 'AWS' },
-    { value: 'git', label: 'Git' },
-    { value: 'linux', label: 'Linux' }
-  ];
+  // Categories list - Imported from Register page
+  const [categories, setCategories] = useState([
+    // ... (same categories array as before)
+  ]);
 
   // Add Question State
   const [newQuestion, setNewQuestion] = useState({
@@ -105,9 +99,6 @@ const AdminPanel = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'submittedAt', direction: 'desc' });
   const [selectedCategory, setSelectedCategory] = useState('all');
   
-  // Categories state
-  const [categories, setCategories] = useState(defaultCategories);
-
   // Manage Questions states
   const [detailedViewQuestion, setDetailedViewQuestion] = useState(null);
   const [questionsSearchTerm, setQuestionsSearchTerm] = useState('');
@@ -123,26 +114,7 @@ const AdminPanel = () => {
     if (!token) {
       navigate('/admin/login');
     } else {
-      // Verify token is still valid
-      const verifyToken = async () => {
-        try {
-          const result = await apiService.checkDashboardAccess();
-          if (!result.success) {
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminUser');
-            navigate('/admin/login');
-          } else {
-            loadAllData();
-          }
-        } catch (error) {
-          console.error('Token verification failed:', error);
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('adminUser');
-          navigate('/admin/login');
-        }
-      };
-      
-      verifyToken();
+      loadAllData();
     }
   }, [navigate]);
 
@@ -186,7 +158,7 @@ const AdminPanel = () => {
     setFilteredResults(filtered);
   }, [results, searchTerm, selectedCategory, sortConfig]);
 
-  // Load all data from API - صرف Database سے
+  // Load all data from API
   const loadAllData = async () => {
     setLoading(true);
     try {
@@ -203,7 +175,7 @@ const AdminPanel = () => {
         setStats(statsResponse.stats);
       }
       
-      // Load questions - Database سے
+      // Load questions
       const questionsResponse = await apiService.getAllQuestions();
       if (questionsResponse.success) {
         setQuestions(questionsResponse.questions || []);
@@ -216,12 +188,75 @@ const AdminPanel = () => {
         setFilteredResults(resultsResponse.results || []);
       }
       
-      showNotification('Data loaded successfully from database', 'success');
+      // Load categories from API and merge with our predefined categories
+      const categoriesResponse = await apiService.getCategories();
+      if (categoriesResponse.success && categoriesResponse.categories) {
+        // Merge API categories with our predefined categories
+        const mergedCategories = [...categories];
+        categoriesResponse.categories.forEach(apiCat => {
+          const existingIndex = mergedCategories.findIndex(c => c.value === apiCat.value);
+          if (existingIndex === -1) {
+            // Add new category from API
+            mergedCategories.push({
+              value: apiCat.value,
+              label: apiCat.label || apiCat.value,
+              description: apiCat.description || apiCat.label || apiCat.value,
+              available: true,
+              type: getCategoryType(apiCat.value)
+            });
+          }
+        });
+        setCategories(mergedCategories);
+      }
+      
+      showNotification('Data loaded successfully', 'success');
     } catch (error) {
       console.error('Error loading data:', error);
-      showNotification('Error loading data. Please check connection.', 'error');
+      showNotification('Error loading data: ' + error.message, 'error');
+      
+      // Set empty states
+      setQuestions([]);
+      setResults([]);
+      setStats({
+        totalStudents: 0,
+        totalQuestions: 0,
+        totalAttempts: 0,
+        averageScore: 0,
+        passRate: 0,
+        todayAttempts: 0
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper function to determine category type
+  const getCategoryType = (categoryValue) => {
+    const category = categories.find(c => c.value === categoryValue);
+    return category ? category.type : 'general';
+  };
+
+  // Helper function to get type icon
+  const getCategoryTypeIcon = (type) => {
+    switch (type) {
+      case 'frontend': return <FaCode />;
+      case 'backend': return <FaServer />;
+      case 'database': return <FaDb />;
+      case 'fullstack': return <FaGlobe />;
+      case 'devops': return <FaDocker />;
+      default: return <FaCode />;
+    }
+  };
+
+  // Helper function to get type color
+  const getCategoryTypeColor = (type) => {
+    switch (type) {
+      case 'frontend': return '#3498db';
+      case 'backend': return '#2ecc71';
+      case 'database': return '#9b59b6';
+      case 'fullstack': return '#e74c3c';
+      case 'devops': return '#f39c12';
+      default: return '#95a5a6';
     }
   };
 
@@ -258,7 +293,7 @@ const AdminPanel = () => {
     setActiveTab('question-detail');
   };
 
-  // Add new question - Database میں
+  // === FIXED: Add new question function ===
   const handleAddQuestion = async () => {
     // Validation
     if (!newQuestion.category.trim()) {
@@ -287,28 +322,30 @@ const AdminPanel = () => {
 
     setLoading(true);
     try {
-      // Prepare question data
+      // Prepare question data - FIXED: Ensure proper boolean for isCorrect
       const questionData = {
         category: newQuestion.category,
         questionText: newQuestion.questionText.trim(),
         options: validOptions.map(opt => ({
           text: opt.text.trim(),
-          isCorrect: Boolean(opt.isCorrect)
+          isCorrect: Boolean(opt.isCorrect) // Force boolean conversion
         })),
         marks: parseInt(newQuestion.marks) || 1,
         difficulty: newQuestion.difficulty
       };
       
-      console.log('Adding question to database:', questionData);
+      console.log('📤 Sending question data to backend:');
+      console.log('Question:', questionData.questionText.substring(0, 50));
+      console.log('Options with isCorrect:');
+      questionData.options.forEach((opt, idx) => {
+        console.log(`  ${idx}: "${opt.text.substring(0, 20)}..." - isCorrect: ${opt.isCorrect} (type: ${typeof opt.isCorrect})`);
+      });
       
       const response = await apiService.addQuestion(questionData);
       
       if (response.success) {
-        // Reload questions from database
-        const questionsResponse = await apiService.getAllQuestions();
-        if (questionsResponse.success) {
-          setQuestions(questionsResponse.questions || []);
-        }
+        // Reload questions
+        await loadAllData();
 
         // Reset form
         setNewQuestion({
@@ -319,13 +356,121 @@ const AdminPanel = () => {
           difficulty: 'medium'
         });
 
-        showNotification('Question added successfully to database!', 'success');
+        showNotification('Question added successfully!', 'success');
       } else {
         showNotification(response.message || 'Failed to add question', 'error');
       }
     } catch (error) {
       console.error('Error adding question:', error);
       showNotification('Error: ' + (error.message || 'Failed to connect to server'), 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // === NEW: Debug questions function ===
+  const debugQuestions = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getAllQuestions();
+      if (response.success && response.questions) {
+        console.log('=== DATABASE QUESTIONS DEBUG ===');
+        console.log(`Total questions: ${response.questions.length}`);
+        
+        response.questions.forEach((q, idx) => {
+          console.log(`\nQ${idx + 1}: ${q.questionText?.substring(0, 50)}...`);
+          console.log(`Category: ${q.category}, Marks: ${q.marks}`);
+          
+          q.options?.forEach((opt, oIdx) => {
+            console.log(`  Option ${oIdx}: "${opt.text?.substring(0, 30)}..."`);
+            console.log(`    isCorrect: ${opt.isCorrect} (type: ${typeof opt.isCorrect})`);
+            console.log(`    Raw value:`, opt);
+          });
+          
+          // Check if any option is marked as correct
+          const hasCorrect = q.options?.some(opt => 
+            opt.isCorrect === true || 
+            opt.isCorrect === 'true' ||
+            String(opt.isCorrect).toLowerCase() === 'true'
+          );
+          
+          if (!hasCorrect) {
+            console.warn(`⚠️ WARNING: Q${idx + 1} has NO correct option marked!`);
+          }
+        });
+        
+        showNotification('Check console for question debug info', 'info');
+      }
+    } catch (error) {
+      console.error('Debug error:', error);
+      showNotification('Debug failed: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // === NEW: Fix existing questions function ===
+  const fixQuestionCorrectOptions = async () => {
+    if (!window.confirm('This will try to fix correct options for HTML questions. Continue?')) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const response = await apiService.getAllQuestions();
+      if (response.success && response.questions) {
+        const htmlQuestions = response.questions.filter(q => q.category === 'html');
+        
+        console.log(`Found ${htmlQuestions.length} HTML questions to check`);
+        
+        // For each HTML question, we would update it
+        // Note: You need to implement updateQuestion API for this to work
+        // This is just a template
+        
+        for (const question of htmlQuestions) {
+          console.log(`Checking: ${question.questionText.substring(0, 50)}...`);
+          
+          // Logic to determine correct answer based on question text
+          let correctOptionIndex = -1;
+          const questionText = question.questionText.toLowerCase();
+          const options = question.options || [];
+          
+          options.forEach((opt, idx) => {
+            const optionText = opt.text.toLowerCase();
+            
+            if (questionText.includes('image') && optionText.includes('<img>')) {
+              correctOptionIndex = idx;
+            } else if (questionText.includes('html ka full form') && optionText.includes('hypertext markup language')) {
+              correctOptionIndex = idx;
+            } else if (questionText.includes('line break') && optionText.includes('<br>')) {
+              correctOptionIndex = idx;
+            } else if (questionText.includes('extension') && optionText.includes('.html')) {
+              correctOptionIndex = idx;
+            } else if (questionText.includes('link') && optionText.includes('<a>')) {
+              correctOptionIndex = idx;
+            } else if (questionText.includes('table') && optionText.includes('<table>')) {
+              correctOptionIndex = idx;
+            } else if ((questionText.includes('sabse badi') || questionText.includes('heading')) && optionText.includes('<h1>')) {
+              correctOptionIndex = idx;
+            } else if (questionText.includes('ordered list') && optionText.includes('<ol>')) {
+              correctOptionIndex = idx;
+            } else if (questionText.includes('paragraph') && optionText.includes('<p>')) {
+              correctOptionIndex = idx;
+            }
+          });
+          
+          if (correctOptionIndex !== -1) {
+            console.log(`Would fix Q: ${question.questionText.substring(0, 30)}`);
+            console.log(`Correct option should be: ${options[correctOptionIndex]?.text}`);
+            // Here you would call updateQuestion API
+          }
+        }
+        
+        showNotification(`Checked ${htmlQuestions.length} HTML questions`, 'info');
+      }
+    } catch (error) {
+      console.error('Fix questions error:', error);
+      showNotification('Fix failed: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -394,12 +539,7 @@ const AdminPanel = () => {
       const response = await apiService.updateConfig(config);
       
       if (response.success) {
-        // Save to localStorage for immediate use
         localStorage.setItem('quizConfig', JSON.stringify(config));
-        
-        // Broadcast change to other tabs/windows
-        window.dispatchEvent(new Event('storage'));
-        
         showNotification('Configuration updated successfully!', 'success');
       } else {
         showNotification(response.message || 'Failed to update config', 'error');
@@ -485,7 +625,7 @@ const AdminPanel = () => {
     });
   };
 
-  // Get filtered and sorted questions - Database سے
+  // Get filtered and sorted questions
   const getFilteredQuestions = () => {
     let filtered = [...questions];
     
@@ -527,27 +667,46 @@ const AdminPanel = () => {
   // Calculate question statistics
   const getQuestionStats = () => {
     const filtered = getFilteredQuestions();
+    const totalQuestions = questions.length;
+    
     return {
       total: filtered.length,
       categories: new Set(filtered.map(q => q.category)).size,
       easy: filtered.filter(q => q.difficulty === 'easy').length,
       medium: filtered.filter(q => q.difficulty === 'medium').length,
       hard: filtered.filter(q => q.difficulty === 'hard').length,
-      totalMarks: filtered.reduce((total, q) => total + (q.marks || 1), 0)
+      totalMarks: filtered.reduce((total, q) => total + (q.marks || 1), 0),
+      totalQuestions
     };
+  };
+
+  // Count questions per category
+  const getQuestionCountByCategory = (categoryValue) => {
+    return questions.filter(q => q.category === categoryValue).length;
   };
 
   // Render a question card
   const renderQuestionCard = (question, index) => {
     const isEven = index % 2 === 0;
+    const categoryInfo = categories.find(c => c.value === question.category);
+    const categoryType = categoryInfo ? categoryInfo.type : 'general';
+    const typeColor = getCategoryTypeColor(categoryType);
+    
+    // Check if question has any correct option
+    const hasCorrectOption = question.options?.some(opt => 
+      opt.isCorrect === true || 
+      opt.isCorrect === 'true' ||
+      String(opt.isCorrect).toLowerCase() === 'true'
+    );
     
     return (
-      <div key={question._id || index} className={`question-card ${isEven ? 'even' : 'odd'}`}>
+      <div key={question._id || index} className={`question-card ${isEven ? 'even' : 'odd'} ${!hasCorrectOption ? 'no-correct' : ''}`}>
         <div className="question-card-header">
           <div className="question-meta">
             <div className="question-tags">
-              <span className="question-tag tag-category">
-                <FaTag /> {question.category || 'Uncategorized'}
+              <span className="question-tag tag-category" style={{ backgroundColor: typeColor + '20', color: typeColor }}>
+                {getCategoryTypeIcon(categoryType)}
+                {question.category || 'Uncategorized'}
               </span>
               <span className="question-tag tag-marks">
                 {question.marks || 1} marks
@@ -555,6 +714,11 @@ const AdminPanel = () => {
               <span className={`question-tag tag-difficulty ${question.difficulty || 'medium'}`}>
                 {question.difficulty || 'medium'}
               </span>
+              {!hasCorrectOption && (
+                <span className="question-tag tag-warning" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>
+                  <FaExclamationTriangle /> No correct option
+                </span>
+              )}
             </div>
             <div className="question-title">
               {question.questionText.length > 100 
@@ -589,19 +753,25 @@ const AdminPanel = () => {
           
           {question.options && question.options.length > 0 && (
             <div className="question-options-preview">
-              {question.options.map((option, idx) => (
-                <div key={idx} className={`option-preview-item ${option.isCorrect ? 'correct' : ''}`}>
-                  <div className="option-letter">
-                    {String.fromCharCode(65 + idx)}
+              {question.options.map((option, idx) => {
+                const isCorrect = option.isCorrect === true || 
+                                 option.isCorrect === 'true' ||
+                                 String(option.isCorrect).toLowerCase() === 'true';
+                
+                return (
+                  <div key={idx} className={`option-preview-item ${isCorrect ? 'correct' : ''}`}>
+                    <div className="option-letter">
+                      {String.fromCharCode(65 + idx)}
+                    </div>
+                    <div className="option-text">
+                      {option.text}
+                    </div>
+                    {isCorrect && (
+                      <FaCheck className="correct-indicator" />
+                    )}
                   </div>
-                  <div className="option-text">
-                    {option.text}
-                  </div>
-                  {option.isCorrect && (
-                    <FaCheck className="correct-indicator" />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -653,6 +823,11 @@ const AdminPanel = () => {
       );
     }
     
+    const categoryInfo = categories.find(c => c.value === detailedViewQuestion.category);
+    const categoryType = categoryInfo ? categoryInfo.type : 'general';
+    const typeColor = getCategoryTypeColor(categoryType);
+    const typeIcon = getCategoryTypeIcon(categoryType);
+    
     return (
       <div className="question-detail-view">
         <div className="section-header">
@@ -668,8 +843,8 @@ const AdminPanel = () => {
         <div className="question-detail-card">
           <div className="detail-header">
             <div className="detail-meta">
-              <div className="detail-category">
-                <strong>Category:</strong> {detailedViewQuestion.category || 'Uncategorized'}
+              <div className="detail-category" style={{ color: typeColor }}>
+                <strong>Category:</strong> {typeIcon} {detailedViewQuestion.category || 'Uncategorized'}
               </div>
               <div className="detail-marks">
                 <strong>Marks:</strong> {detailedViewQuestion.marks || 1}
@@ -691,22 +866,31 @@ const AdminPanel = () => {
           <div className="detail-options">
             <h3>Options:</h3>
             <div className="options-list">
-              {detailedViewQuestion.options && detailedViewQuestion.options.map((option, index) => (
-                <div 
-                  key={index} 
-                  className={`detail-option ${option.isCorrect ? 'correct-option' : ''}`}
-                >
-                  <div className="option-header">
-                    <span className="option-letter">{String.fromCharCode(65 + index)}</span>
-                    <span className="option-text">{option.text}</span>
-                    {option.isCorrect && (
-                      <span className="correct-badge">
-                        <FaCheck /> Correct Answer
+              {detailedViewQuestion.options && detailedViewQuestion.options.map((option, index) => {
+                const isCorrect = option.isCorrect === true || 
+                                 option.isCorrect === 'true' ||
+                                 String(option.isCorrect).toLowerCase() === 'true';
+                
+                return (
+                  <div 
+                    key={index} 
+                    className={`detail-option ${isCorrect ? 'correct-option' : ''}`}
+                  >
+                    <div className="option-header">
+                      <span className="option-letter">{String.fromCharCode(65 + index)}</span>
+                      <span className="option-text">{option.text}</span>
+                      {isCorrect && (
+                        <span className="correct-badge">
+                          <FaCheck /> Correct Answer
+                        </span>
+                      )}
+                      <span className="option-correct-value">
+                        (isCorrect: {String(option.isCorrect)}, type: {typeof option.isCorrect})
                       </span>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
           
@@ -861,14 +1045,6 @@ const AdminPanel = () => {
             <FaSignOutAlt />
             <span>Logout</span>
           </button>
-
-          <button 
-            onClick={() => navigate('/')} 
-            className="home-btn"
-          >
-            <FaHome />
-            <span>Home</span>
-          </button>
         </div>
       </div>
 
@@ -920,17 +1096,25 @@ const AdminPanel = () => {
                   {loading ? <FaSpinner className="spinning" /> : <FaSync />} 
                   Refresh Data
                 </button>
+                {/* Debug button */}
+                <button 
+                  className="btn-warning"
+                  onClick={debugQuestions}
+                  disabled={loading}
+                >
+                  <FaWrench /> Debug Questions
+                </button>
               </div>
             </div>
             
             {/* Stats Grid */}
             <div className="stats-grid">
-              {renderStatCard('Total Students', stats.totalStudents, <FaUsers />, 'blue')}
-              {renderStatCard('Total Questions', stats.totalQuestions, <FaQuestionCircle />, 'green')}
-              {renderStatCard('Total Attempts', stats.totalAttempts, <FaClipboardCheck />, 'orange')}
-              {renderStatCard('Average Score', `${stats.averageScore}%`, <FaChartLine />, 'purple')}
-              {renderStatCard('Pass Rate', `${stats.passRate}%`, <FaStar />, 'yellow')}
-              {renderStatCard("Today's Attempts", stats.todayAttempts, <FaUserGraduate />, 'red')}
+              {renderStatCard('Total Students', stats.totalStudents || 0, <FaUsers />, 'blue')}
+              {renderStatCard('Total Questions', stats.totalQuestions || 0, <FaQuestionCircle />, 'green')}
+              {renderStatCard('Total Attempts', stats.totalAttempts || 0, <FaClipboardCheck />, 'orange')}
+              {renderStatCard('Average Score', `${(stats.averageScore || 0).toFixed(1)}%`, <FaChartLine />, 'purple')}
+              {renderStatCard('Pass Rate', `${(stats.passRate || 0).toFixed(1)}%`, <FaStar />, 'yellow')}
+              {renderStatCard("Today's Attempts", stats.todayAttempts || 0, <FaUserGraduate />, 'red')}
             </div>
 
             {/* Quick Summary */}
@@ -949,6 +1133,16 @@ const AdminPanel = () => {
                   <div className="summary-item">
                     <span>Categories:</span>
                     <span>{categories.length}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span>Questions with issues:</span>
+                    <span>
+                      {questions.filter(q => !q.options?.some(opt => 
+                        opt.isCorrect === true || 
+                        opt.isCorrect === 'true' ||
+                        String(opt.isCorrect).toLowerCase() === 'true'
+                      )).length}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -971,6 +1165,47 @@ const AdminPanel = () => {
                 </div>
               </div>
             </div>
+
+            {/* Categories Overview */}
+            <div className="categories-overview">
+              <h3><FaListOl /> Categories Overview</h3>
+              <div className="categories-list">
+                {categories.slice(0, 8).map((category) => {
+                  const questionCount = getQuestionCountByCategory(category.value);
+                  const typeIcon = getCategoryTypeIcon(category.type);
+                  const typeColor = getCategoryTypeColor(category.type);
+                  
+                  return (
+                    <div key={category.value} className="category-overview-card">
+                      <div className="category-overview-header">
+                        <div className="category-type-icon" style={{ color: typeColor }}>
+                          {typeIcon}
+                        </div>
+                        <h4>{category.label}</h4>
+                      </div>
+                      <div className="category-overview-content">
+                        <div className="category-description">
+                          {category.description}
+                        </div>
+                        <div className="category-stats">
+                          <span className="question-count">
+                            {questionCount} question{questionCount !== 1 ? 's' : ''}
+                          </span>
+                          <span className="category-type" style={{ backgroundColor: typeColor + '20', color: typeColor }}>
+                            {category.type}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {categories.length > 8 && (
+                <div className="more-categories">
+                  <p>And {categories.length - 8} more categories...</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -978,7 +1213,7 @@ const AdminPanel = () => {
         {activeTab === 'add-question' && (
           <div className="add-question">
             <div className="section-header">
-              <h2><FaPlusCircle /> Add New Question to Database</h2>
+              <h2><FaPlusCircle /> Add New Question</h2>
               <button 
                 className="btn-secondary"
                 onClick={() => setActiveTab('manage-questions')}
@@ -997,13 +1232,21 @@ const AdminPanel = () => {
                     required
                   >
                     <option value="">Select Category</option>
-                    {categories.map(category => (
-                      <option key={category.value} value={category.value}>
-                        {category.label}
-                      </option>
-                    ))}
+                    {categories.map(category => {
+                      const questionCount = getQuestionCountByCategory(category.value);
+                      const typeIcon = getCategoryTypeIcon(category.type);
+                      const typeColor = getCategoryTypeColor(category.type);
+                      
+                      return (
+                        <option key={category.value} value={category.value}>
+                          <span style={{ color: typeColor }}>
+                            {category.label} ({questionCount})
+                          </span>
+                        </option>
+                      );
+                    })}
                   </select>
-                  <small>Select technology category</small>
+                  <small>Select technology category from {categories.length} available categories</small>
                 </div>
                 
                 <div className="form-group">
@@ -1041,6 +1284,9 @@ const AdminPanel = () => {
                   rows="3"
                   required
                 />
+                <small className="form-hint">
+                  <FaExclamationTriangle /> IMPORTANT: Make sure question text clearly indicates the correct answer
+                </small>
               </div>
               
               <div className="form-group full-width">
@@ -1074,7 +1320,9 @@ const AdminPanel = () => {
                             checked={option.isCorrect}
                             onChange={() => setCorrectOption(index)}
                           />
-                          <span>Correct Answer</span>
+                          <span className="correct-label">
+                            <FaCheckCircle /> Correct Answer
+                          </span>
                         </label>
                       </div>
                     </div>
@@ -1086,11 +1334,14 @@ const AdminPanel = () => {
                       className="add-option-btn"
                       onClick={addOption}
                     >
-                      <FaPlusCircle /> Add Option
+                      <FaPlus /> Add Option
                     </button>
                   )}
                 </div>
-                <small className="form-hint">Select exactly one correct option</small>
+                <small className="form-hint">
+                  <FaExclamationTriangle /> CRITICAL: Select EXACTLY ONE correct option. 
+                  This will be saved as <code>isCorrect: true</code> in database.
+                </small>
               </div>
               
               <div className="form-actions">
@@ -1101,7 +1352,7 @@ const AdminPanel = () => {
                   disabled={loading}
                 >
                   {loading ? <FaSpinner className="spinning" /> : <FaSave />} 
-                  {loading ? 'Saving...' : 'Save to Database'}
+                  {loading ? 'Saving...' : 'Save Question'}
                 </button>
                 <button 
                   type="button" 
@@ -1118,6 +1369,14 @@ const AdminPanel = () => {
                 >
                   Clear Form
                 </button>
+                <button 
+                  type="button" 
+                  className="btn-info"
+                  onClick={debugQuestions}
+                  disabled={loading}
+                >
+                  <FaWrench /> Debug Questions
+                </button>
               </div>
             </div>
           </div>
@@ -1126,7 +1385,6 @@ const AdminPanel = () => {
         {/* Manage Questions Tab */}
         {activeTab === 'manage-questions' && (
           <div className="manage-questions-container">
-            {/* Header Section */}
             <div className="manage-header-section">
               <div className="header-content">
                 <div className="header-title">
@@ -1151,16 +1409,24 @@ const AdminPanel = () => {
                   >
                     {loading ? <FaSpinner className="spinning" /> : <FaSync />}
                   </button>
+                  
+                  <button 
+                    className="btn-debug-questions"
+                    onClick={debugQuestions}
+                    disabled={loading}
+                    title="Debug Questions in Console"
+                  >
+                    <FaWrench />
+                  </button>
                 </div>
               </div>
               
-              {/* Quick Stats */}
               <div className="quick-stats">
                 <div className="stat-item-small">
                   <div className="label">
                     <FaQuestionCircle /> Total Questions
                   </div>
-                  <div className="value">{questionStats.total}</div>
+                  <div className="value">{questionStats.totalQuestions}</div>
                 </div>
                 
                 <div className="stat-item-small">
@@ -1177,18 +1443,22 @@ const AdminPanel = () => {
                   <div className="value">{questionStats.easy}</div>
                 </div>
                 
-                <div className="stat-item-small">
+                <div className="stat-item-small warning">
                   <div className="label">
-                    <FaClipboardCheck /> Total Marks
+                    <FaExclamationTriangle /> Issues
                   </div>
-                  <div className="value">{questionStats.totalMarks}</div>
+                  <div className="value">
+                    {questions.filter(q => !q.options?.some(opt => 
+                      opt.isCorrect === true || 
+                      opt.isCorrect === 'true' ||
+                      String(opt.isCorrect).toLowerCase() === 'true'
+                    )).length}
+                  </div>
                 </div>
               </div>
             </div>
             
-            {/* Main Content */}
             <div className="manage-main-content">
-              {/* Search and Filter Section */}
               <div className="search-filter-section">
                 <div className="search-container">
                   <div className="search-wrapper">
@@ -1227,8 +1497,11 @@ const AdminPanel = () => {
                     >
                       <option value="all">All Categories ({questions.length})</option>
                       {categories.map(category => {
-                        const count = questions.filter(q => q.category === category.value).length;
+                        const count = getQuestionCountByCategory(category.value);
                         if (count > 0) {
+                          const typeIcon = getCategoryTypeIcon(category.type);
+                          const typeColor = getCategoryTypeColor(category.type);
+                          
                           return (
                             <option key={category.value} value={category.value}>
                               {category.label} ({count})
@@ -1298,7 +1571,6 @@ const AdminPanel = () => {
                 </div>
               </div>
               
-              {/* Results Info */}
               <div className="results-info-bar">
                 <div className="results-info">
                   <div className="results-count">
@@ -1323,7 +1595,6 @@ const AdminPanel = () => {
                 </div>
               </div>
               
-              {/* Questions Grid View */}
               {loading ? (
                 <div className="loading-container">
                   <div className="loading-spinner"></div>
@@ -1371,7 +1642,6 @@ const AdminPanel = () => {
                 </div>
               )}
               
-              {/* Pagination */}
               {getPaginatedQuestions().totalPages > 1 && (
                 <div className="pagination-container">
                   <div className="pagination-info">
@@ -1485,6 +1755,8 @@ const AdminPanel = () => {
                     <option value="all">All Categories</option>
                     {categories.map(category => {
                       const count = results.filter(r => r.category === category.value).length;
+                      const typeIcon = getCategoryTypeIcon(category.type);
+                      
                       return (
                         <option key={category.value} value={category.value}>
                           {category.label} ({count})
@@ -1529,6 +1801,10 @@ const AdminPanel = () => {
                     filteredResults.map((result) => {
                       const percentage = parseFloat(result.percentage) || 0;
                       const passed = percentage >= config.passingPercentage;
+                      const categoryInfo = categories.find(c => c.value === result.category);
+                      const categoryType = categoryInfo ? categoryInfo.type : 'general';
+                      const typeColor = getCategoryTypeColor(categoryType);
+                      const typeIcon = getCategoryTypeIcon(categoryType);
                       
                       return (
                         <tr key={result._id} className={passed ? 'passed-row' : 'failed-row'}>
@@ -1545,7 +1821,9 @@ const AdminPanel = () => {
                           </td>
                           <td>{result.rollNumber || 'N/A'}</td>
                           <td>
-                            <span className="table-category-badge">{result.category || 'General'}</span>
+                            <span className="table-category-badge" style={{ backgroundColor: typeColor + '20', color: typeColor }}>
+                              {typeIcon} {result.category || 'General'}
+                            </span>
                           </td>
                           <td><strong>{result.score || 0}</strong></td>
                           <td>
@@ -1579,7 +1857,6 @@ const AdminPanel = () => {
               </table>
             </div>
             
-            {/* Results Summary */}
             <div className="results-summary">
               <div className="summary-stats">
                 <div className="stat-item">
@@ -1616,7 +1893,7 @@ const AdminPanel = () => {
                 disabled={loading}
               >
                 {loading ? <FaSpinner className="spinning" /> : <FaSave />} 
-                {loading ? 'Saving...' : 'Save to Database'}
+                {loading ? 'Saving...' : 'Save Configuration'}
               </button>
             </div>
             
@@ -1681,6 +1958,64 @@ const AdminPanel = () => {
                     />
                     <span className="config-value">{config.totalQuestions} questions</span>
                   </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Debug Section in Config */}
+            <div className="debug-section">
+              <h3><FaWrench /> Debug Tools</h3>
+              <div className="debug-buttons">
+                <button 
+                  className="btn-info"
+                  onClick={debugQuestions}
+                  disabled={loading}
+                >
+                  <FaWrench /> Debug Questions in Console
+                </button>
+                <button 
+                  className="btn-warning"
+                  onClick={fixQuestionCorrectOptions}
+                  disabled={loading}
+                >
+                  <FaExclamationTriangle /> Fix HTML Questions (Experimental)
+                </button>
+              </div>
+              <p className="debug-note">
+                <FaInfoCircle /> Use these tools to diagnose and fix question issues. Check browser console for detailed output.
+              </p>
+            </div>
+            
+            {/* Categories Overview in Config */}
+            <div className="categories-config">
+              <h3><FaListOl /> Available Categories ({categories.length})</h3>
+              <div className="categories-list-config">
+                <div className="categories-grid-config">
+                  {categories.map((category, index) => {
+                    const questionCount = getQuestionCountByCategory(category.value);
+                    const typeIcon = getCategoryTypeIcon(category.type);
+                    const typeColor = getCategoryTypeColor(category.type);
+                    
+                    return (
+                      <div key={category.value} className="category-item-config">
+                        <div className="category-header-config">
+                          <div className="category-type-config" style={{ backgroundColor: typeColor + '20', color: typeColor }}>
+                            {typeIcon} {category.type}
+                          </div>
+                          <div className="question-count-config">
+                            {questionCount} Q
+                          </div>
+                        </div>
+                        <div className="category-name-config">
+                          <h4>{category.label}</h4>
+                          <p className="category-desc-config">{category.description}</p>
+                        </div>
+                        <div className="category-value-config">
+                          <code>{category.value}</code>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

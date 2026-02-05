@@ -5,11 +5,11 @@ import ShamsiLogo from '../assets/shamsi-logo.jpg';
 import './Register.css';
 
 // React Icons
-import { 
-  FaCode, 
-  FaServer, 
-  FaDatabase, 
-  FaGlobe, 
+import {
+  FaCode,
+  FaServer,
+  FaDatabase,
+  FaGlobe,
   FaDocker,
   FaCheck,
   FaClock,
@@ -25,7 +25,9 @@ import {
   FaSpinner,
   FaSearch,
   FaCog,
-  FaInfoCircle
+  FaInfoCircle,
+  FaCheckCircle,
+  FaTimesCircle
 } from 'react-icons/fa';
 
 const Register = () => {
@@ -35,259 +37,259 @@ const Register = () => {
     rollNumber: '',
     category: ''
   });
-  
+
   // Default categories including DevOps
   const [defaultCategories] = useState([
-    { 
-      value: 'html', 
-      label: 'HTML', 
+    {
+      value: 'html',
+      label: 'HTML',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/html5/html5-original.svg',
       description: 'HyperText Markup Language',
       available: true,
       type: 'frontend'
     },
-    { 
-      value: 'css', 
-      label: 'CSS', 
+    {
+      value: 'css',
+      label: 'CSS',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/css3/css3-original.svg',
       description: 'Cascading Style Sheets',
       available: true,
       type: 'frontend'
     },
-    { 
-      value: 'javascript', 
-      label: 'JavaScript', 
+    {
+      value: 'javascript',
+      label: 'JavaScript',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg',
       description: 'Programming Language',
       available: true,
       type: 'frontend'
     },
-    { 
-      value: 'react', 
-      label: 'React.js', 
+    {
+      value: 'react',
+      label: 'React.js',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg',
       description: 'JavaScript Library for UI',
       available: true,
       type: 'frontend'
     },
-    { 
-      value: 'nextjs', 
-      label: 'Next.js', 
+    {
+      value: 'nextjs',
+      label: 'Next.js',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg',
       description: 'React Framework',
       available: true,
       type: 'frontend'
     },
-    { 
-      value: 'vue', 
-      label: 'Vue.js', 
+    {
+      value: 'vue',
+      label: 'Vue.js',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vuejs/vuejs-original.svg',
       description: 'JavaScript Framework',
       available: true,
       type: 'frontend'
     },
-    { 
-      value: 'angular', 
-      label: 'Angular', 
+    {
+      value: 'angular',
+      label: 'Angular',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/angularjs/angularjs-original.svg',
       description: 'TypeScript Framework',
       available: true,
       type: 'frontend'
     },
-    { 
-      value: 'typescript', 
-      label: 'TypeScript', 
+    {
+      value: 'typescript',
+      label: 'TypeScript',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg',
       description: 'Typed JavaScript',
       available: true,
       type: 'frontend'
     },
-    { 
-      value: 'node', 
-      label: 'Node.js', 
+    {
+      value: 'node',
+      label: 'Node.js',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg',
       description: 'JavaScript Runtime',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'express', 
-      label: 'Express.js', 
+    {
+      value: 'express',
+      label: 'Express.js',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/express/express-original.svg',
       description: 'Node.js Framework',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'python', 
-      label: 'Python', 
+    {
+      value: 'python',
+      label: 'Python',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg',
       description: 'Programming Language',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'django', 
-      label: 'Django', 
+    {
+      value: 'django',
+      label: 'Django',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/django/django-plain.svg',
       description: 'Python Web Framework',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'flask', 
-      label: 'Flask', 
+    {
+      value: 'flask',
+      label: 'Flask',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flask/flask-original.svg',
       description: 'Python Microframework',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'java', 
-      label: 'Java', 
+    {
+      value: 'java',
+      label: 'Java',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/java/java-original.svg',
       description: 'Programming Language',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'spring', 
-      label: 'Spring Boot', 
+    {
+      value: 'spring',
+      label: 'Spring Boot',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg',
       description: 'Java Framework',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'php', 
-      label: 'PHP', 
+    {
+      value: 'php',
+      label: 'PHP',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg',
       description: 'Server-side Scripting',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'laravel', 
-      label: 'Laravel', 
+    {
+      value: 'laravel',
+      label: 'Laravel',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/laravel/laravel-plain.svg',
       description: 'PHP Framework',
       available: true,
       type: 'backend'
     },
-    { 
-      value: 'mongodb', 
-      label: 'MongoDB', 
+    {
+      value: 'mongodb',
+      label: 'MongoDB',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg',
       description: 'NoSQL Database',
       available: true,
       type: 'database'
     },
-    { 
-      value: 'mysql', 
-      label: 'MySQL', 
+    {
+      value: 'mysql',
+      label: 'MySQL',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg',
       description: 'Relational Database',
       available: true,
       type: 'database'
     },
-    { 
-      value: 'postgresql', 
-      label: 'PostgreSQL', 
+    {
+      value: 'postgresql',
+      label: 'PostgreSQL',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg',
       description: 'Advanced SQL Database',
       available: true,
       type: 'database'
     },
-    { 
-      value: 'mern', 
-      label: 'MERN Stack', 
+    {
+      value: 'mern',
+      label: 'MERN Stack',
       logo: 'https://miro.medium.com/v2/resize:fit:1400/1*DnCplmvHp4VfE6eKyxDm8A.png',
       description: 'MongoDB + Express + React + Node',
       available: true,
       type: 'fullstack'
     },
-    { 
-      value: 'graphql', 
-      label: 'GraphQL', 
+    {
+      value: 'graphql',
+      label: 'GraphQL',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg',
       description: 'Query Language for APIs',
       available: true,
       type: 'backend'
     },
     // DevOps Categories
-    { 
-      value: 'git', 
-      label: 'Git', 
+    {
+      value: 'git',
+      label: 'Git',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg',
       description: 'Version Control System',
       available: true,
       type: 'devops'
     },
-    { 
-      value: 'docker', 
-      label: 'Docker', 
+    {
+      value: 'docker',
+      label: 'Docker',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg',
       description: 'Container Platform',
       available: true,
       type: 'devops'
     },
-    { 
-      value: 'aws', 
-      label: 'AWS', 
+    {
+      value: 'aws',
+      label: 'AWS',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg',
       description: 'Cloud Platform',
       available: true,
       type: 'devops'
     },
-    { 
-      value: 'jenkins', 
-      label: 'Jenkins', 
+    {
+      value: 'jenkins',
+      label: 'Jenkins',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jenkins/jenkins-original.svg',
       description: 'CI/CD Automation',
       available: true,
       type: 'devops'
     },
-    { 
-      value: 'kubernetes', 
-      label: 'Kubernetes', 
+    {
+      value: 'kubernetes',
+      label: 'Kubernetes',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg',
       description: 'Container Orchestration',
       available: true,
       type: 'devops'
     },
-    { 
-      value: 'linux', 
-      label: 'Linux', 
+    {
+      value: 'linux',
+      label: 'Linux',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg',
       description: 'Operating System',
       available: true,
       type: 'devops'
     },
-    { 
-      value: 'ansible', 
-      label: 'Ansible', 
+    {
+      value: 'ansible',
+      label: 'Ansible',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/ansible/ansible-original.svg',
       description: 'Configuration Management',
       available: true,
       type: 'devops'
     },
-    { 
-      value: 'terraform', 
-      label: 'Terraform', 
+    {
+      value: 'terraform',
+      label: 'Terraform',
       logo: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg',
       description: 'Infrastructure as Code',
       available: true,
       type: 'devops'
     }
   ]);
-  
+
   const [categories, setCategories] = useState([...defaultCategories]);
   const [config, setConfig] = useState({
     quizTime: 30,
     passingPercentage: 40,
     totalQuestions: 50
   });
-  
+
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [apiCategories, setApiCategories] = useState([]);
@@ -295,39 +297,22 @@ const Register = () => {
   const [configSource, setConfigSource] = useState('default');
   const [notification, setNotification] = useState(null);
   const [isHovering, setIsHovering] = useState(null);
-  const [serverStatus, setServerStatus] = useState('checking');
 
   useEffect(() => {
-    checkServerConnection();
     loadConfig();
     loadAPICategories();
-    
+
     // Listen for storage changes (when admin updates config)
     const handleStorageChange = () => {
       loadConfig();
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
-
-  const checkServerConnection = async () => {
-    try {
-      // Try to fetch health endpoint
-      const response = await fetch('http://localhost:5000/api/health');
-      if (response.ok) {
-        setServerStatus('connected');
-      } else {
-        setServerStatus('disconnected');
-      }
-    } catch (error) {
-      setServerStatus('disconnected');
-      console.log('Server is not running, will work in offline mode');
-    }
-  };
 
   const loadConfig = async () => {
     try {
@@ -338,17 +323,22 @@ const Register = () => {
         setConfig(parsedConfig);
         setConfigSource('localStorage');
       }
-      
-      // Then try API for latest config if server is connected
-      if (serverStatus === 'connected') {
-        const response = await getConfig();
-        if (response.success && response.config) {
-          const apiConfig = response.config;
-          setConfig(apiConfig);
-          setConfigSource('api');
-          
-          // Save to localStorage for future use
-          localStorage.setItem('quizConfig', JSON.stringify(apiConfig));
+
+      // Then try API for latest config
+      const response = await getConfig();
+      if (response.success && response.config) {
+        const apiConfig = response.config;
+        setConfig(apiConfig);
+        setConfigSource('api');
+
+        // Save to localStorage for future use
+        localStorage.setItem('quizConfig', JSON.stringify(apiConfig));
+        
+        if (response.message && response.message.includes('default')) {
+          setNotification({
+            message: 'Using default configuration',
+            type: 'warning'
+          });
         }
       }
     } catch (error) {
@@ -356,58 +346,61 @@ const Register = () => {
       // If API fails and no localStorage, use defaults
       if (!localStorage.getItem('quizConfig')) {
         setConfigSource('default');
+        setNotification({
+          message: 'Using default configuration (server not available)',
+          type: 'warning'
+        });
       }
     }
   };
 
   const loadAPICategories = async () => {
     try {
-      // Only load from API if server is connected
-      if (serverStatus === 'connected') {
-        const response = await getCategories();
-        if (response.success && response.categories) {
-          setApiCategories(response.categories);
-          
-          // Merge API categories with defaults
-          const mergedCategories = [...defaultCategories];
-          response.categories.forEach(apiCat => {
-            if (!mergedCategories.find(c => c.value === apiCat.value)) {
-              mergedCategories.push({
-                value: apiCat.value,
-                label: apiCat.label || apiCat.value,
-                logo: apiCat.logo || ShamsiLogo,
-                description: apiCat.description || apiCat.label || apiCat.value,
-                available: true,
-                type: apiCat.type || 'general'
-              });
-            }
-          });
-          
-          setCategories(mergedCategories);
-        }
-      } else {
-        // Use default categories if server is disconnected
-        setCategories([...defaultCategories]);
+      const response = await getCategories();
+      if (response.success && response.categories) {
+        setApiCategories(response.categories);
+
+        // Merge API categories with defaults
+        const mergedCategories = [...defaultCategories];
+        response.categories.forEach(apiCat => {
+          if (!mergedCategories.find(c => c.value === apiCat.value)) {
+            mergedCategories.push({
+              value: apiCat.value,
+              label: apiCat.label || apiCat.value,
+              logo: apiCat.logo || ShamsiLogo,
+              description: apiCat.description || apiCat.label || apiCat.value,
+              available: true,
+              type: apiCat.type || 'general'
+            });
+          }
+        });
+
+        setCategories(mergedCategories);
       }
     } catch (error) {
       console.log('Categories load error:', error);
       setCategories([...defaultCategories]);
+      setNotification({
+        message: 'Using default categories (server not available)',
+        type: 'warning'
+      });
     }
   };
 
   const handleCategorySelect = (categoryValue) => {
     const category = categories.find(c => c.value === categoryValue);
     if (category && category.available) {
-      setFormData({...formData, category: categoryValue});
+      setFormData({ ...formData, category: categoryValue });
       setSelectedCategory(category);
-      
+
+      // Show notification for selected category
       showNotification(`${category.label} selected`, 'success');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.name || !formData.rollNumber || !formData.category) {
       showNotification('Please fill all fields', 'error');
       return;
@@ -435,44 +428,31 @@ const Register = () => {
         ...formData,
         rollNumber: rollNumberToSend
       };
-      
+
       console.log('Attempting registration with:', registrationData);
-      
-      // Check if server is connected
-      if (serverStatus === 'connected') {
-        const response = await registerUser(registrationData);
-        
-        if (response.success) {
-          handleSuccessfulRegistration(registrationData, response.message);
-        } else {
-          showNotification(response.message || 'Registration failed', 'error');
-        }
+
+      const response = await registerUser(registrationData);
+
+      if (response.success) {
+        handleSuccessfulRegistration(registrationData, response.message);
       } else {
-        // Offline mode - save to localStorage only
-        console.log('Server offline, saving to localStorage');
-        handleOfflineRegistration(registrationData);
+        showNotification(response.message || 'Registration failed', 'error');
       }
-      
+
     } catch (error) {
       console.error('Registration error details:', error);
-      
+
       // Extract error message properly
       let errorMessage = 'Registration failed';
-      
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        errorMessage = error.response.data?.message || 
-                      error.response.data?.error || 
-                      `Server error: ${error.response.status}`;
-      } else if (error.request) {
-        // The request was made but no response was received
-        errorMessage = 'No response from server. Please check if backend is running on port 5000.';
+
+      if (error.message.includes('Network Error')) {
+        errorMessage = 'Cannot connect to server. Please check if backend is running.';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Registration timeout. Please try again.';
       } else {
-        // Something happened in setting up the request that triggered an Error
         errorMessage = error.message || 'Registration failed';
       }
-      
+
       showNotification('Error: ' + errorMessage, 'error');
     } finally {
       setLoading(false);
@@ -492,55 +472,17 @@ const Register = () => {
     localStorage.setItem('quizPassingPercentage', config.passingPercentage.toString());
     localStorage.setItem('quizTime', config.quizTime.toString());
     localStorage.setItem('totalQuestions', config.totalQuestions.toString());
-    
-    const categoryInfo = categories.find(c => c.value === registrationData.category);
-    if (categoryInfo) {
-      localStorage.setItem('categoryInfo', JSON.stringify(categoryInfo));
-    }
-    
-    // Set quiz active flag
-    localStorage.setItem('quizActive', 'true');
-    
-    showNotification(message || 'Registration successful! Redirecting to quiz...', 'success');
-    
-    setTimeout(() => {
-      navigate('/quiz');
-    }, 1500);
-  };
 
-  const handleOfflineRegistration = (registrationData) => {
-    // Save to localStorage for offline mode
-    const offlineData = {
-      ...registrationData,
-      offlineMode: true,
-      registeredAt: new Date().toISOString()
-    };
-    
-    // Save to localStorage
-    localStorage.setItem('offlineRegistration', JSON.stringify(offlineData));
-    localStorage.setItem('quizConfig', JSON.stringify(config));
-    localStorage.setItem('userData', JSON.stringify({
-      name: registrationData.name,
-      rollNumber: registrationData.rollNumber,
-      category: registrationData.category,
-      offlineMode: true
-    }));
-    localStorage.setItem('quizCategory', registrationData.category);
-    localStorage.setItem('quizRollNumber', registrationData.rollNumber);
-    localStorage.setItem('quizPassingPercentage', config.passingPercentage.toString());
-    localStorage.setItem('quizTime', config.quizTime.toString());
-    localStorage.setItem('totalQuestions', config.totalQuestions.toString());
-    
     const categoryInfo = categories.find(c => c.value === registrationData.category);
     if (categoryInfo) {
       localStorage.setItem('categoryInfo', JSON.stringify(categoryInfo));
     }
-    
+
     // Set quiz active flag
     localStorage.setItem('quizActive', 'true');
-    
-    showNotification('Registration saved offline. Starting quiz...', 'warning');
-    
+
+    showNotification(message || 'Registration successful! Redirecting to quiz...', 'success');
+
     setTimeout(() => {
       navigate('/quiz');
     }, 1500);
@@ -552,8 +494,8 @@ const Register = () => {
     e.target.style.padding = '8px';
   };
 
-  const filteredCategories = selectedType === 'all' 
-    ? categories 
+  const filteredCategories = selectedType === 'all'
+    ? categories
     : categories.filter(cat => cat.type === selectedType);
 
   const categoryTypes = [
@@ -567,11 +509,11 @@ const Register = () => {
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
+    setTimeout(() => setNotification(null), 5000);
   };
 
   const getTypeIcon = (type) => {
-    switch(type) {
+    switch (type) {
       case 'frontend': return <FaCode />;
       case 'backend': return <FaServer />;
       case 'database': return <FaDatabase />;
@@ -582,7 +524,7 @@ const Register = () => {
   };
 
   const getTypeColor = (type) => {
-    switch(type) {
+    switch (type) {
       case 'frontend': return '#3498db';
       case 'backend': return '#2ecc71';
       case 'database': return '#9b59b6';
@@ -599,13 +541,13 @@ const Register = () => {
         <div className={`notification-toast ${notification.type}`}>
           <div className="toast-content">
             <span className="toast-icon">
-              {notification.type === 'success' ? <FaCheck /> : 
-               notification.type === 'error' ? <FaExclamationTriangle /> : 
-               notification.type === 'warning' ? <FaExclamationTriangle /> : <FaInfoCircle />}
+              {notification.type === 'success' ? <FaCheck /> :
+                notification.type === 'error' ? <FaExclamationTriangle /> :
+                  notification.type === 'warning' ? <FaExclamationTriangle /> : <FaInfoCircle />}
             </span>
             <span>{notification.message}</span>
           </div>
-          <button 
+          <button
             className="toast-close"
             onClick={() => setNotification(null)}
           >
@@ -613,25 +555,7 @@ const Register = () => {
           </button>
         </div>
       )}
-      
-      {/* Server Status Indicator */}
-      <div className={`server-status ${serverStatus}`}>
-        <span className="status-dot"></span>
-        <span className="status-text">
-          {serverStatus === 'connected' ? 'Server Connected' : 
-           serverStatus === 'disconnected' ? 'Working Offline' : 'Checking Connection...'}
-        </span>
-        {serverStatus === 'disconnected' && (
-          <button 
-            className="retry-btn"
-            onClick={checkServerConnection}
-            disabled={loading}
-          >
-            Retry
-          </button>
-        )}
-      </div>
-      
+
       <div className="register-card">
         <div className="header-section">
           <div className="logo">
@@ -652,7 +576,7 @@ const Register = () => {
             <h3 className="section-title">
               <FaUser /> Personal Information
             </h3>
-            
+
             <div className="form-group">
               <label htmlFor="name">
                 <FaUser /> Full Name
@@ -662,7 +586,7 @@ const Register = () => {
                 id="name"
                 placeholder="Enter your full name"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
                 disabled={loading}
                 minLength="3"
@@ -683,7 +607,7 @@ const Register = () => {
                 value={formData.rollNumber}
                 onChange={(e) => {
                   let value = e.target.value.replace(/\D/g, '');
-                  setFormData({...formData, rollNumber: value});
+                  setFormData({ ...formData, rollNumber: value });
                 }}
                 required
                 disabled={loading}
@@ -701,7 +625,7 @@ const Register = () => {
             <h3 className="section-title">
               <FaLayerGroup /> Select Technology Stack
             </h3>
-            
+
             <div className="category-filter">
               {categoryTypes.map(type => (
                 <button
@@ -716,10 +640,10 @@ const Register = () => {
                 </button>
               ))}
             </div>
-            
+
             <div className="categories-grid">
               {filteredCategories.map((category) => (
-                <div 
+                <div
                   key={category.value}
                   className={`category-card ${formData.category === category.value ? 'selected' : ''} ${!category.available ? 'not-available' : ''}`}
                   onClick={() => handleCategorySelect(category.value)}
@@ -728,8 +652,8 @@ const Register = () => {
                   title={category.description}
                 >
                   <div className={`category-icon white-box ${formData.category === category.value ? 'selected-icon-box' : ''}`}>
-                    <img 
-                      src={category.logo} 
+                    <img
+                      src={category.logo}
                       alt={`${category.label} logo`}
                       className="category-logo-img"
                       onError={(e) => handleLogoError(e, category)}
@@ -738,7 +662,7 @@ const Register = () => {
                   <div className="category-info">
                     <div className="category-header">
                       <h4>{category.label}</h4>
-                      <span 
+                      <span
                         className="category-type-badge"
                         style={{
                           backgroundColor: getTypeColor(category.type) + '20',
@@ -764,19 +688,19 @@ const Register = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   {formData.category === category.value && (
                     <div className="selection-indicator">
                       <FaCheck className="check-icon" />
                     </div>
                   )}
-                  
+
                   {isHovering === category.value && formData.category !== category.value && (
                     <div className="hover-overlay"></div>
                   )}
                 </div>
               ))}
-              
+
               {filteredCategories.length === 0 && (
                 <div className="no-categories">
                   <FaSearch className="empty-icon" />
@@ -785,13 +709,14 @@ const Register = () => {
                 </div>
               )}
             </div>
-            
+
+            {/* Selected Category Info - Only show when a category is selected */}
             {selectedCategory && (
               <div className="selected-category-info">
                 <div className="selected-info-header">
                   <div className="selected-icon">
-                    <img 
-                      src={selectedCategory.logo} 
+                    <img
+                      src={selectedCategory.logo}
                       alt="Selected icon"
                       onError={(e) => {
                         e.target.src = ShamsiLogo;
@@ -814,7 +739,7 @@ const Register = () => {
                 </div>
               </div>
             )}
-            
+
             <div className="category-note">
               <p>
                 <FaExclamationTriangle /> <strong>Note:</strong> Only available technology stacks can be selected for assessment.
@@ -827,22 +752,27 @@ const Register = () => {
             <h3 className="section-title">
               <FaQuestionCircle /> Assessment Details
             </h3>
-            
+
             <div className="assessment-info">
               <div className="config-source-info">
                 <span className={`source-badge ${configSource}`}>
-                  <FaCog /> Config: {configSource}
+                  <FaCog /> Config Source: {configSource}
                 </span>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="refresh-config-btn"
-                  onClick={loadConfig}
+                  onClick={() => {
+                    loadConfig();
+                    loadAPICategories();
+                    showNotification('Configuration refreshed', 'success');
+                  }}
                   disabled={loading}
+                  title="Refresh configuration"
                 >
                   {loading ? <FaSpinner className="spinning" /> : <FaCog />}
                 </button>
               </div>
-              
+
               <div className="info-grid">
                 <div className="info-item">
                   <div className="info-icon">
@@ -881,8 +811,8 @@ const Register = () => {
                       {selectedCategory ? (
                         <>
                           <span className="tech-logo">
-                            <img 
-                              src={selectedCategory.logo} 
+                            <img
+                              src={selectedCategory.logo}
                               alt="Tech logo"
                               onError={(e) => {
                                 e.target.src = ShamsiLogo;
@@ -898,15 +828,10 @@ const Register = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="assessment-note">
                 <p>
                   <FaExclamationTriangle /> <strong>Important:</strong> The quiz will automatically submit when time runs out.
-                  {serverStatus === 'disconnected' && (
-                    <span style={{color: '#e74c3c', fontWeight: 'bold'}}>
-                      {' '}(Working in offline mode)
-                    </span>
-                  )}
                 </p>
               </div>
             </div>
@@ -914,8 +839,8 @@ const Register = () => {
 
           {/* Action Buttons */}
           <div className="action-buttons">
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="submit-btn"
               disabled={loading || !formData.category}
             >
@@ -924,21 +849,16 @@ const Register = () => {
                   <FaSpinner className="spinning" />
                   Registering...
                 </>
-              ) : serverStatus === 'connected' ? (
+              ) : (
                 <>
                   <FaRocket />
                   Start Assessment
                 </>
-              ) : (
-                <>
-                  <FaRocket />
-                  Start Offline Assessment
-                </>
               )}
             </button>
 
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="admin-login-btn"
               onClick={() => navigate('/admin/login')}
               disabled={loading}

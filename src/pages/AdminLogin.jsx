@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminLogin, testServerConnection } from '../services/api';
-import { 
-  FaUser, 
-  FaLock, 
-  FaSignInAlt, 
+import { adminLogin, testServerConnection, resetAdmin } from '../services/api';
+import {
+  FaUser,
+  FaLock,
+  FaSignInAlt,
   FaSync,
   FaEye,
   FaEyeSlash,
   FaUserPlus,
   FaShieldAlt,
-  FaExclamationTriangle,
-  FaCheckCircle
+  FaPlug,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 import { MdAdminPanelSettings } from 'react-icons/md';
 import shamsiLogo from '../assets/shamsi-logo.jpg';
@@ -20,14 +22,16 @@ import './AdminLogin.css';
 const AdminLogin = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
-    password: ''
+    username: 'admin',
+    password: 'admin123'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formValid, setFormValid] = useState(false);
   const [serverStatus, setServerStatus] = useState('checking');
+  const [connectionTested, setConnectionTested] = useState(false);
+  const [showResetOption, setShowResetOption] = useState(false);
 
   useEffect(() => {
     checkServerStatus();
@@ -39,8 +43,8 @@ const AdminLogin = () => {
       setServerStatus('connected');
     } else {
       setServerStatus('disconnected');
-      setError('Cannot connect to server. Please ensure backend is running on port 5000.');
     }
+    setConnectionTested(true);
   };
 
   useEffect(() => {
@@ -52,6 +56,7 @@ const AdminLogin = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setShowResetOption(false);
 
     if (!formValid) {
       setError('Please enter both username and password');
@@ -59,86 +64,39 @@ const AdminLogin = () => {
       return;
     }
 
-    // If server is disconnected, show error
-    if (serverStatus === 'disconnected') {
-      setError('Cannot connect to server. Please start the backend server first.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      // Try direct fetch first
-      console.log('Attempting login...');
-      
-      // Try /admin/login endpoint
-      let response;
-      try {
-        response = await fetch('http://localhost:5000/admin/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(formData),
-        });
-        
-        if (!response.ok) {
-          // If /admin/login fails, try /api/admin/login
-          response = await fetch('http://localhost:5000/api/admin/login', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData),
-          });
-        }
-      } catch (fetchError) {
-        console.log('Fetch failed, trying apiService...');
-        // If fetch fails, use apiService
-        const loginData = await adminLogin(formData);
-        
-        if (loginData.success && loginData.token) {
-          localStorage.setItem('adminToken', loginData.token);
-          localStorage.setItem('adminUser', JSON.stringify(loginData.user || {}));
-          
-          setTimeout(() => {
-            navigate('/admin/dashboard');
-          }, 500);
-          return;
-        } else {
-          setError(loginData.message || 'Invalid credentials');
-          setLoading(false);
-          return;
-        }
-      }
+      const loginData = {
+        username: formData.username.trim(),
+        password: formData.password
+      };
 
-      // Handle fetch response
-      const data = await response.json();
+      console.log('🔄 Attempting login with:', loginData);
       
-      if (!response.ok) {
-        setError(data.message || `Server error: ${response.status}`);
-        setLoading(false);
-        return;
-      }
+      const response = await adminLogin(loginData);
 
-      if (data.success && data.token) {
-        localStorage.setItem('adminToken', data.token);
-        localStorage.setItem('adminUser', JSON.stringify(data.user || {}));
+      if (response.success && response.token) {
+        localStorage.setItem('adminToken', response.token);
+        localStorage.setItem('adminUser', JSON.stringify(response.user || {}));
+
+        console.log('✅ Login successful, redirecting...');
         
         setTimeout(() => {
           navigate('/admin/dashboard');
         }, 500);
       } else {
-        setError(data.message || 'Invalid credentials');
+        setError(response.message || 'Invalid credentials');
+        setShowResetOption(true);
         setLoading(false);
       }
-      
+
     } catch (error) {
       console.error('Login error:', error);
-      
+
       if (error.message?.includes('Network Error') || error.message?.includes('timeout')) {
-        setError('Cannot connect to server. Please ensure backend is running on port 5000.');
-      } else if (error.message?.includes('credentials') || error.status === 401) {
+        setError('Cannot connect to server. Please check your connection.');
+      } else if (error.message?.includes('credentials') || error.message?.includes('401')) {
         setError('Invalid username or password');
+        setShowResetOption(true);
       } else {
         setError(error.message || 'An error occurred. Please try again.');
       }
@@ -147,11 +105,15 @@ const AdminLogin = () => {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+    
     if (error) setError('');
+    setShowResetOption(false);
   };
 
   const togglePasswordVisibility = () => {
@@ -164,55 +126,44 @@ const AdminLogin = () => {
 
   const handleRetryConnection = async () => {
     setLoading(true);
+    setServerStatus('checking');
     await checkServerStatus();
     setLoading(false);
   };
 
+  const handleResetAdmin = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      await resetAdmin();
+      setError('✅ Admin reset successfully! Try logging in again.');
+      setShowResetOption(false);
+      
+      // Update form with default credentials
+      setFormData({
+        username: 'admin',
+        password: 'admin123'
+      });
+      
+    } catch (error) {
+      setError('❌ Failed to reset admin: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="admin-login-container">
-      {/* Server Status Banner */}
-      <div className={`server-status-banner ${serverStatus}`}>
-        <div className="status-content">
-          {serverStatus === 'connected' ? (
-            <>
-              <FaCheckCircle className="status-icon" />
-              <span>Server Connected</span>
-            </>
-          ) : serverStatus === 'disconnected' ? (
-            <>
-              <FaExclamationTriangle className="status-icon" />
-              <span>Server Disconnected</span>
-              <button 
-                className="retry-connection-btn"
-                onClick={handleRetryConnection}
-                disabled={loading}
-              >
-                <FaSync className={loading ? 'spinning' : ''} />
-                Retry
-              </button>
-            </>
-          ) : (
-            <>
-              <FaSync className="status-icon spinning" />
-              <span>Checking server connection...</span>
-            </>
-          )}
-        </div>
-      </div>
-      
       <div className="admin-login-card">
         {/* Header Section */}
         <div className="login-header">
           <div className="header-content">
             <div className="logo-wrapper">
-              <img 
-                src={shamsiLogo} 
-                alt="Shamsi Institute Logo" 
+              <img
+                src={shamsiLogo}
+                alt="Shamsi Institute Logo"
                 className="institute-logo"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='%232563eb'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E";
-                }}
               />
               <div className="institute-info">
                 <h1 className="institute-name">Shamsi Institute</h1>
@@ -225,21 +176,35 @@ const AdminLogin = () => {
           </div>
         </div>
 
+        {/* Connection Status - ONLY SHOW WHEN DISCONNECTED */}
+        {connectionTested && serverStatus === 'disconnected' && (
+          <div className="connection-status-bar">
+            <div className={`status-indicator ${serverStatus}`}>
+              <div className="status-icon">
+                <FaTimesCircle />
+              </div>
+              <span className="status-text">
+                Server: Offline
+              </span>
+              <button
+                type="button"
+                className="retry-connection-btn"
+                onClick={handleRetryConnection}
+                disabled={loading}
+              >
+                <FaPlug /> Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Login Form */}
         <div className="login-form-section">
           <div className="form-title">
             <FaShieldAlt className="form-title-icon" />
             <h2>Administrator Login</h2>
           </div>
-          
-          {/* Test Credentials Banner */}
-          <div className="test-credentials-banner">
-            <FaExclamationTriangle className="test-icon" />
-            <div className="test-info">
-              <strong>Test Credentials:</strong> username: <code>admin</code>, password: <code>admin123</code>
-            </div>
-          </div>
-          
+
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-section">
               <div className="input-group">
@@ -255,14 +220,11 @@ const AdminLogin = () => {
                     onChange={handleChange}
                     placeholder="Enter admin username"
                     required
-                    autoComplete="username"
-                    disabled={loading || serverStatus === 'disconnected'}
+                    disabled={loading}
                     className="credential-input"
                     autoFocus
                   />
-                  <div className="input-underline"></div>
                 </div>
-                <div className="input-hint">Enter "admin" for testing</div>
               </div>
 
               <div className="input-group">
@@ -278,27 +240,23 @@ const AdminLogin = () => {
                     onChange={handleChange}
                     placeholder="Enter password"
                     required
-                    autoComplete="current-password"
-                    disabled={loading || serverStatus === 'disconnected'}
+                    disabled={loading}
                     className="credential-input"
                   />
-                  <div className="input-underline"></div>
                   <button
                     type="button"
                     className="password-toggle"
                     onClick={togglePasswordVisibility}
-                    disabled={loading || serverStatus === 'disconnected'}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    disabled={loading}
                   >
                     {showPassword ? <FaEyeSlash /> : <FaEye />}
                   </button>
                 </div>
-                <div className="input-hint">Enter "admin123" for testing</div>
               </div>
 
               {/* Error Display */}
               {error && (
-                <div className="error-display">
+                <div className={`error-display ${error.includes('✅') ? 'success' : ''}`}>
                   <div className="error-content">
                     <FaExclamationTriangle className="error-icon" />
                     <span className="error-message">{error}</span>
@@ -306,9 +264,27 @@ const AdminLogin = () => {
                 </div>
               )}
 
+              {/* Reset Admin Button (shown on login failure) */}
+              {showResetOption && (
+                <div className="reset-admin-section">
+                  <button
+                    type="button"
+                    className="reset-admin-btn"
+                    onClick={handleResetAdmin}
+                    disabled={loading}
+                  >
+                    <FaSync className="reset-icon" />
+                    <span>Reset Admin Credentials</span>
+                  </button>
+                  <p className="reset-note">
+                    This will reset admin to default credentials
+                  </p>
+                </div>
+              )}
+
               {/* Submit Button */}
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="login-submit-btn"
                 disabled={loading || !formValid || serverStatus === 'disconnected'}
               >
@@ -320,15 +296,17 @@ const AdminLogin = () => {
                 ) : (
                   <>
                     <FaSignInAlt className="btn-icon" />
-                    <span className="btn-text">Sign In to Dashboard</span>
+                    <span className="btn-text">
+                      {serverStatus === 'disconnected' ? 'Server Offline' : 'Sign In to Dashboard'}
+                    </span>
                   </>
                 )}
               </button>
 
               {/* Register Button */}
               <div className="action-buttons">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="register-btn"
                   onClick={handleGoToRegister}
                   disabled={loading}
