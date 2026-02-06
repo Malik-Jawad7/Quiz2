@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Environment detection and configuration - UPDATED
+// Environment detection and configuration
 const getApiBaseUrl = () => {
   // For local development
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -8,7 +8,7 @@ const getApiBaseUrl = () => {
   }
   
   // For production - USE YOUR VERCEL BACKEND URL
-  return 'https://backend-8g3sdhi0l-khalids-projects-3de9ee65.vercel.app';
+  return 'https://backend-11cz3rq3m-khalids-projects-3de9ee65.vercel.app';
   // OR use this if above doesn't work:
   // return 'https://backend-one-taupe-14.vercel.app';
 };
@@ -68,12 +68,6 @@ api.interceptors.response.use(
           window.location.href = '/admin/login';
         }, 1000);
       }
-    }
-    
-    if (error.message.includes('CORS')) {
-      console.error('CORS Error - Check backend URL:', API_BASE_URL);
-      console.error('Frontend Origin:', window.location.origin);
-      console.error('Backend should allow:', window.location.origin);
     }
     
     return Promise.reject(error);
@@ -295,8 +289,6 @@ export const getQuizQuestions = async (category) => {
     
     const response = await api.get(`/api/quiz/questions/${category}`);
     
-    console.log('📥 API Response:', response.data);
-    
     if (response.data.success && response.data.questions) {
       const validatedQuestions = response.data.questions.map((question, index) => {
         const options = Array.isArray(question.options) 
@@ -335,7 +327,7 @@ export const getQuizQuestions = async (category) => {
 // Submit quiz
 export const submitQuiz = async (quizData) => {
   try {
-    console.log('📤 Submitting quiz data to:', API_BASE_URL);
+    console.log('📤 Submitting quiz data');
     
     // Calculate percentage properly
     const totalQuestions = quizData.totalQuestions || 1;
@@ -471,8 +463,7 @@ const apiService = {
   submitQuiz,
   registerUser,
   resetAdmin,
-  adminLogout,
-  API_BASE_URL
+  adminLogout
 };
 
 export default apiService;
